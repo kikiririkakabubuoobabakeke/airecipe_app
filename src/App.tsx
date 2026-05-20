@@ -75,7 +75,7 @@ const secondaryFeatures: Feature[] = [
     tone: 'red',
   },
   {
-    title: 'ああああああああああああ',
+    title: 'アカウント設定',
     description: '言語、ログアウト、ユーザー管理',
     action: '設定',
     icon: 'settings',
@@ -190,7 +190,7 @@ function App() {
           </button>
           <button type="button" className="account-button">
             <Icon name="user" />
-            <span>アカウント設定</span>
+            <span>ああああああああ</span>
           </button>
         </div>
       </header>
