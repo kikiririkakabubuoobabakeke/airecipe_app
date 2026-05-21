@@ -39,7 +39,7 @@ export async function testGroqConnection(prompt: string) {
           },
         ],
         temperature: 0,
-        max_tokens: 131072
+        max_tokens: 7500
       }),
     })
 
