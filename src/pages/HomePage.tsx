@@ -17,7 +17,7 @@ import {
   generateRecipes,
   markRecipeCooked,
 } from '../lib/recipeApi'
-import type { Ingredient, Recipe } from '../types/ui'
+import type { AppDestination, Ingredient, Recipe } from '../types/ui'
 
 function buildSummaryItems(ingredients: Ingredient[], recipes: Recipe[]) {
   const expiringCount = ingredients.filter((ingredient) =>
@@ -46,7 +46,7 @@ function buildSummaryItems(ingredients: Ingredient[], recipes: Recipe[]) {
 }
 
 type HomePageProps = {
-  onNavigate?: (page: 'home' | 'fridge') => void
+  onNavigate?: (page: AppDestination) => void
   onSelectRecipe?: (recipe: Recipe) => void
 }
 
@@ -149,7 +149,15 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
         <section className="feature-section" aria-label="クイックアクセス">
           <div className="feature-grid">
             {primaryFeatures.map((feature) => (
-              <FeatureCard key={feature.title} feature={feature} />
+              <FeatureCard
+                key={feature.title}
+                feature={feature}
+                onAction={
+                  feature.title === '調理履歴'
+                    ? () => onNavigate?.('history')
+                    : undefined
+                }
+              />
             ))}
           </div>
         </section>

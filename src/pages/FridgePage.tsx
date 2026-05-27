@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Topbar } from '../components/Topbar'
 import { Icon } from '../components/Icon'
+import type { AppDestination } from '../types/ui'
 
 type Ingredient = {
   ingredient_id: number
@@ -19,7 +20,11 @@ type Summary = {
   nearExpirationCount: number
 }
 
-export function FridgePage({ onNavigate }: { onNavigate: (page: 'home' | 'fridge') => void }) {
+export function FridgePage({
+  onNavigate,
+}: {
+  onNavigate: (page: AppDestination) => void
+}) {
   const [data, setData] = useState<{ summary: Summary; ingredients: Ingredient[] } | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)

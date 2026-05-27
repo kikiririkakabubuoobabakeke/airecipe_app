@@ -6,7 +6,9 @@ import {
 } from './groq.js'
 import {
   generateAndSaveRecipes,
+  getCookingHistoryForUser,
   getInventoryForUser,
+  getSavedRecipesForUser,
   markRecipeCooked,
 } from './recipes.js'
 import { checkSupabaseConnection } from './supabase.js'
@@ -138,6 +140,16 @@ const server = createServer((request, response) => {
 
   if (request.method === 'GET' && url.pathname === '/api/inventory') {
     handleInventory(url, response)
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/cooking-history') {
+    handleCookingHistory(url, response)
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/recipes/saved') {
+    handleSavedRecipes(url, response)
     return
   }
 
@@ -332,6 +344,42 @@ async function handleRecipeGeneration(request, response) {
       ok: false,
       message:
         error instanceof Error ? error.message : 'Recipe generation failed',
+    })
+  }
+}
+
+async function handleCookingHistory(url, response) {
+  try {
+    const history = await getCookingHistoryForUser(url.searchParams.get('userId'))
+    sendJson(response, 200, {
+      ok: true,
+      ...history,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Cooking history request failed',
+    })
+  }
+}
+
+async function handleSavedRecipes(url, response) {
+  try {
+    const recipes = await getSavedRecipesForUser(url.searchParams.get('userId'))
+    sendJson(response, 200, {
+      ok: true,
+      ...recipes,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Saved recipes request failed',
     })
   }
 }

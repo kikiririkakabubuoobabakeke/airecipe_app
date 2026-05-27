@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Topbar } from '../components/Topbar'
 import { markRecipeCooked } from '../lib/recipeApi'
-import type { Ingredient, Recipe } from '../types/ui'
+import type { AppDestination, Ingredient, Recipe } from '../types/ui'
 
 type RecipeDetailPageProps = {
   recipe: Recipe
   onBack: () => void
-  onNavigate?: (page: 'home' | 'fridge') => void
+  onNavigate?: (page: AppDestination) => void
   onInventoryUpdated?: (ingredients: Ingredient[]) => void
 }
 

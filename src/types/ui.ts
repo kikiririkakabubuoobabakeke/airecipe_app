@@ -28,6 +28,8 @@ export type Feature = {
   tone: FeatureTone
 }
 
+export type AppDestination = 'home' | 'fridge' | 'history'
+
 export type Ingredient = {
   inventoryId?: number
   ingredientId?: number
@@ -42,6 +44,7 @@ export type Ingredient = {
 }
 
 export type Recipe = {
+  historyId?: number
   recipeId?: string
   name: string
   meta: string
@@ -51,6 +54,9 @@ export type Recipe = {
   difficulty?: string
   reason?: string
   cookProcess?: string
+  cookedAt?: string
+  createdAt?: string
+  cookedCount?: number
   steps?: string[]
   ingredients?: RecipeIngredientAmount[]
 }

@@ -8,7 +8,20 @@ type ApiResponse<T> =
     }
 
 async function readJson<T>(response: Response): Promise<T> {
-  const payload = (await response.json()) as ApiResponse<T>
+  const responseText = await response.text()
+  let payload: ApiResponse<T>
+
+  try {
+    payload = responseText
+      ? (JSON.parse(responseText) as ApiResponse<T>)
+      : ({ ok: false, message: response.statusText } as ApiResponse<T>)
+  } catch {
+    throw new Error(
+      responseText
+        ? `API response was not JSON: ${responseText.slice(0, 120)}`
+        : response.statusText,
+    )
+  }
 
   if (!response.ok) {
     throw new Error(
@@ -65,5 +78,21 @@ export async function markRecipeCooked(recipeId: string, servings: number) {
     recipeId: string
     servings: number
     inventory: Ingredient[]
+  }>(response)
+}
+
+export async function fetchCookingHistory() {
+  const response = await fetch('/api/cooking-history', { cache: 'no-store' })
+  return readJson<{
+    userId: string
+    recipes: Recipe[]
+  }>(response)
+}
+
+export async function fetchSavedRecipes() {
+  const response = await fetch('/api/recipes/saved', { cache: 'no-store' })
+  return readJson<{
+    userId: string
+    recipes: Recipe[]
   }>(response)
 }

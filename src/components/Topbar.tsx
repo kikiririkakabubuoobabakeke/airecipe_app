@@ -1,6 +1,11 @@
 import { Icon } from './Icon'
+import type { AppDestination } from '../types/ui'
 
-export function Topbar({ onNavigate }: { onNavigate?: (page: 'home' | 'fridge') => void }) {
+export function Topbar({
+  onNavigate,
+}: {
+  onNavigate?: (page: AppDestination) => void
+}) {
   return (
     <header className="topbar">
       <a
@@ -54,6 +59,15 @@ export function Topbar({ onNavigate }: { onNavigate?: (page: 'home' | 'fridge') 
           }}
         >
           買い物
+        </a>
+        <a
+          href="#history"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate?.('history')
+          }}
+        >
+          履歴
         </a>
       </nav>
 

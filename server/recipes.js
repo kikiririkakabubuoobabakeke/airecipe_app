@@ -224,6 +224,61 @@ function buildCookProcess(recipe) {
   return [...reason, ...steps, ...tags].join('\n')
 }
 
+function parseCookProcess(cookProcess) {
+  if (!cookProcess) {
+    return {
+      reason: '',
+      tags: [],
+      steps: [],
+    }
+  }
+
+  const lines = cookProcess
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+  const reasonLine = lines.find((line) => line.startsWith('提案理由:'))
+  const tagLine = lines.find((line) => line.startsWith('タグ:'))
+  const steps = lines
+    .filter((line) => !line.startsWith('提案理由:') && !line.startsWith('タグ:'))
+    .map((line) => line.replace(/^\d+\.\s*/, ''))
+
+  return {
+    reason: reasonLine?.replace('提案理由:', '').trim() ?? '',
+    tags:
+      tagLine
+        ?.replace('タグ:', '')
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean) ?? [],
+    steps,
+  }
+}
+
+function buildMeta(recipe) {
+  return `${recipe.cook_time ?? 0}分 / 保存済みレシピ`
+}
+
+function mapRecipeIngredients(recipe) {
+  return (
+    recipe?.recipe_ingredients?.map((ingredient) => ({
+      ingredientId: ingredient.ingredient_id,
+      name: ingredient.ingredient_management?.ingredient_name ?? '名称未設定',
+      amount: ingredient.required_amount,
+      unit: ingredient.unit,
+    })) ?? []
+  )
+}
+
+function getLatestCookedAt(historyRows) {
+  const cookedTimes = (historyRows ?? [])
+    .map((history) => history.cooked_at)
+    .filter(Boolean)
+    .sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+
+  return cookedTimes[0] ?? null
+}
+
 function mapSavedRecipe(recipe, savedRecipe, savedIngredients) {
   const cookProcess = buildCookProcess(recipe)
 
@@ -247,6 +302,53 @@ function mapSavedRecipe(recipe, savedRecipe, savedIngredients) {
   }
 }
 
+function mapHistoryRecipe(row) {
+  const recipe = row.recipes
+  const parsed = parseCookProcess(recipe?.cook_process ?? '')
+  const ingredients = mapRecipeIngredients(recipe)
+
+  return {
+    historyId: row.history_id,
+    cookedAt: row.cooked_at,
+    recipeId: recipe?.recipe_id,
+    name: recipe?.name ?? '名称未設定',
+    cookTime: recipe?.cook_time ?? 0,
+    servings: 1,
+    difficulty: '保存済み',
+    reason: parsed.reason,
+    cookProcess: recipe?.cook_process ?? '',
+    steps: parsed.steps,
+    tags: parsed.tags.length ? parsed.tags : ['調理履歴'],
+    meta: buildMeta(recipe ?? {}),
+    ingredients,
+  }
+}
+
+function mapStoredRecipe(recipe) {
+  const parsed = parseCookProcess(recipe?.cook_process ?? '')
+  const cookedCount = recipe?.cooking_history?.length ?? 0
+  const cookedAt = getLatestCookedAt(recipe?.cooking_history)
+
+  return {
+    recipeId: recipe?.recipe_id,
+    createdAt: recipe?.created_at,
+    cookedAt,
+    cookedCount,
+    name: recipe?.name ?? '名称未設定',
+    cookTime: recipe?.cook_time ?? 0,
+    servings: 1,
+    difficulty: '保存済み',
+    reason: parsed.reason,
+    cookProcess: recipe?.cook_process ?? '',
+    steps: parsed.steps,
+    tags: parsed.tags.length ? parsed.tags : ['保存済み'],
+    meta: `${recipe?.cook_time ?? 0}分 / ${
+      cookedCount > 0 ? `調理${cookedCount}回` : '未調理'
+    }`,
+    ingredients: mapRecipeIngredients(recipe),
+  }
+}
+
 export async function generateAndSaveRecipes({ userId: requestedUserId, servings = 2 }) {
   const { userId, inventory } = await getInventoryForUser(requestedUserId)
 
@@ -267,7 +369,10 @@ export async function generateAndSaveRecipes({ userId: requestedUserId, servings
         content: buildRecipePrompt(inventory, servings),
       },
     ],
-    temperature: 0.25,
+    temperature: 0.85,
+    top_p: 0.9,
+    frequency_penalty: 0.25,
+    presence_penalty: 0.2,
     max_tokens: 2500,
     response_format: {
       type: 'json_object',
@@ -480,5 +585,82 @@ export async function markRecipeCooked({
     history,
     deductions: results,
     inventory: inventory.inventory,
+  }
+}
+
+export async function getCookingHistoryForUser(requestedUserId) {
+  const userId = await resolveUserId(requestedUserId)
+  const client = ensureSupabase()
+  const { data, error } = await client
+    .from('cooking_history')
+    .select(
+      `
+      history_id,
+      cooked_at,
+      recipes (
+        recipe_id,
+        name,
+        cook_time,
+        cook_process,
+        recipe_ingredients (
+          ingredient_id,
+          required_amount,
+          unit,
+          ingredient_management (
+            ingredient_name
+          )
+        )
+      )
+    `,
+    )
+    .eq('user_id', userId)
+    .order('cooked_at', { ascending: false })
+
+  if (error) {
+    throw new Error(`Failed to fetch cooking history: ${error.message}`)
+  }
+
+  return {
+    userId,
+    recipes: (data ?? []).map(mapHistoryRecipe),
+  }
+}
+
+export async function getSavedRecipesForUser(requestedUserId) {
+  const userId = await resolveUserId(requestedUserId)
+  const client = ensureSupabase()
+  const { data, error } = await client
+    .from('recipes')
+    .select(
+      `
+      recipe_id,
+      name,
+      cook_time,
+      cook_process,
+      created_at,
+      recipe_ingredients (
+        ingredient_id,
+        required_amount,
+        unit,
+        ingredient_management (
+          ingredient_name
+        )
+      ),
+      cooking_history (
+        history_id,
+        cooked_at
+      )
+    `,
+    )
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    throw new Error(`Failed to fetch saved recipes: ${error.message}`)
+  }
+
+  return {
+    userId,
+    recipes: (data ?? []).map(mapStoredRecipe),
   }
 }
