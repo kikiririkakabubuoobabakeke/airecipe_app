@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Topbar } from '../components/Topbar'
-import { markRecipeCooked } from '../lib/recipeApi'
+import { Icon } from '../components/Icon'
+import { markRecipeCooked, setRecipeFavorite } from '../lib/recipeApi'
 import type { AppDestination, Ingredient, Recipe } from '../types/ui'
 
 type RecipeDetailPageProps = {
@@ -18,7 +19,12 @@ export function RecipeDetailPage({
 }: RecipeDetailPageProps) {
   const [servings, setServings] = useState(1)
   const [isCooking, setIsCooking] = useState(false)
+  const [isFavorite, setIsFavorite] = useState(Boolean(recipe.isFavorite))
+  const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false)
   const [message, setMessage] = useState('')
+  const displayTags = isFavorite
+    ? Array.from(new Set(['お気に入り', ...recipe.tags]))
+    : recipe.tags.filter((tag) => tag !== 'お気に入り')
   const steps =
     recipe.steps?.length
       ? recipe.steps
@@ -50,14 +56,57 @@ export function RecipeDetailPage({
     }
   }
 
+  async function handleFavoriteToggle() {
+    if (!recipe.recipeId) {
+      setMessage('保存済みレシピだけお気に入りにできます')
+      return
+    }
+
+    const nextFavorite = !isFavorite
+    setIsUpdatingFavorite(true)
+    setMessage('')
+
+    try {
+      const result = await setRecipeFavorite(recipe.recipeId, nextFavorite)
+      setIsFavorite(result.isFavorite)
+      setMessage(
+        result.isFavorite
+          ? 'お気に入りに追加しました'
+          : 'お気に入りを解除しました',
+      )
+    } catch (error) {
+      console.error('[vite] Favorite update failed:', error)
+      setMessage('お気に入りの更新に失敗しました')
+    } finally {
+      setIsUpdatingFavorite(false)
+    }
+  }
+
   return (
     <div className="app-shell">
       <Topbar onNavigate={onNavigate} />
 
       <main className="recipe-detail">
-        <button type="button" className="secondary-button" onClick={onBack}>
-          戻る
-        </button>
+        <div className="recipe-detail__toolbar">
+          <button type="button" className="secondary-button" onClick={onBack}>
+            戻る
+          </button>
+          <button
+            type="button"
+            className={`favorite-button ${isFavorite ? 'is-active' : ''}`}
+            onClick={handleFavoriteToggle}
+            disabled={isUpdatingFavorite}
+          >
+            <Icon name="heart" />
+            <span>
+              {isUpdatingFavorite
+                ? '更新中...'
+                : isFavorite
+                  ? 'お気に入り済み'
+                  : 'お気に入りに追加'}
+            </span>
+          </button>
+        </div>
 
         <section className="recipe-detail__hero">
           <p className="eyebrow">レシピ詳細</p>
@@ -67,7 +116,7 @@ export function RecipeDetailPage({
             {recipe.reason ? ` / ${recipe.reason}` : ''}
           </p>
           <div className="tag-row">
-            {recipe.tags.map((tag) => (
+            {displayTags.map((tag) => (
               <span key={tag}>{tag}</span>
             ))}
           </div>

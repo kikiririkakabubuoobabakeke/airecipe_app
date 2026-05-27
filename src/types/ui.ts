@@ -57,6 +57,8 @@ export type Recipe = {
   cookedAt?: string
   createdAt?: string
   cookedCount?: number
+  isCooked?: boolean
+  isFavorite?: boolean
   steps?: string[]
   ingredients?: RecipeIngredientAmount[]
 }

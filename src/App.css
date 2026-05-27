@@ -696,8 +696,44 @@ button:disabled {
   padding: 34px 0 56px;
 }
 
-.recipe-detail > .secondary-button {
+.recipe-detail__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recipe-detail__toolbar .secondary-button {
   padding: 0 16px;
+}
+
+.favorite-button {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+  font-weight: 900;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
+}
+
+.favorite-button:hover {
+  transform: translateY(-1px);
+}
+
+.favorite-button.is-active {
+  border-color: rgba(138, 74, 63, 0.26);
+  color: var(--danger);
+  background: #fffcfb;
 }
 
 .recipe-detail__hero {
@@ -805,6 +841,33 @@ button:disabled {
 .history-list {
   display: grid;
   gap: 14px;
+}
+
+.history-filters {
+  margin-bottom: 22px;
+}
+
+.history-filters .filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.history-filters .filter-pill span {
+  display: inline-grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.history-filters .filter-pill.active span {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
 }
 
 .history-card {
@@ -946,6 +1009,7 @@ button:disabled {
   .recipe-card__header,
   .modal-actions,
   .cook-complete-panel,
+  .recipe-detail__toolbar,
   .history-error {
     flex-direction: column;
   }
@@ -966,7 +1030,9 @@ button:disabled {
 
   .cook-complete-panel,
   .cook-complete-panel .primary-button,
-  .cook-complete-panel .serving-field {
+  .cook-complete-panel .serving-field,
+  .recipe-detail__toolbar .secondary-button,
+  .favorite-button {
     width: 100%;
   }
 }

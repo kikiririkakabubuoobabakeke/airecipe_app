@@ -10,6 +10,7 @@ import {
   getInventoryForUser,
   getSavedRecipesForUser,
   markRecipeCooked,
+  setRecipeFavorite,
 } from './recipes.js'
 import { checkSupabaseConnection } from './supabase.js'
 import pg from 'pg'
@@ -170,6 +171,11 @@ const server = createServer((request, response) => {
 
   if (request.method === 'POST' && url.pathname === '/api/recipes/cooked') {
     handleRecipeCooked(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/recipes/favorite') {
+    handleRecipeFavorite(request, response)
     return
   }
 
@@ -401,6 +407,28 @@ async function handleRecipeCooked(request, response) {
     sendJson(response, 500, {
       ok: false,
       message: error instanceof Error ? error.message : 'Cooking failed',
+    })
+  }
+}
+
+async function handleRecipeFavorite(request, response) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await setRecipeFavorite({
+      recipeId: body?.recipeId,
+      isFavorite: body?.isFavorite,
+      userId: body?.userId,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Favorite update failed',
     })
   }
 }

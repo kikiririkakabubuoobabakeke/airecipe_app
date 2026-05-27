@@ -96,3 +96,25 @@ export async function fetchSavedRecipes() {
     recipes: Recipe[]
   }>(response)
 }
+
+export async function setRecipeFavorite(
+  recipeId: string,
+  isFavorite: boolean,
+) {
+  const response = await fetch('/api/recipes/favorite', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      recipeId,
+      isFavorite,
+    }),
+  })
+
+  return readJson<{
+    userId: string
+    recipeId: string
+    isFavorite: boolean
+  }>(response)
+}

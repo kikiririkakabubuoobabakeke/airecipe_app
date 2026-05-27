@@ -324,16 +324,22 @@ function mapHistoryRecipe(row) {
   }
 }
 
-function mapStoredRecipe(recipe) {
+function mapStoredRecipe(recipe, userId) {
   const parsed = parseCookProcess(recipe?.cook_process ?? '')
   const cookedCount = recipe?.cooking_history?.length ?? 0
   const cookedAt = getLatestCookedAt(recipe?.cooking_history)
+  const isFavorite = (recipe?.favorites ?? []).some(
+    (favorite) => favorite.user_id === userId,
+  )
+  const tags = parsed.tags.length ? parsed.tags : ['保存済み']
 
   return {
     recipeId: recipe?.recipe_id,
     createdAt: recipe?.created_at,
     cookedAt,
     cookedCount,
+    isCooked: cookedCount > 0,
+    isFavorite,
     name: recipe?.name ?? '名称未設定',
     cookTime: recipe?.cook_time ?? 0,
     servings: 1,
@@ -341,7 +347,7 @@ function mapStoredRecipe(recipe) {
     reason: parsed.reason,
     cookProcess: recipe?.cook_process ?? '',
     steps: parsed.steps,
-    tags: parsed.tags.length ? parsed.tags : ['保存済み'],
+    tags: isFavorite ? ['お気に入り', ...tags] : tags,
     meta: `${recipe?.cook_time ?? 0}分 / ${
       cookedCount > 0 ? `調理${cookedCount}回` : '未調理'
     }`,
@@ -588,6 +594,64 @@ export async function markRecipeCooked({
   }
 }
 
+async function ensureRecipeBelongsToUser({ client, recipeId, userId }) {
+  const { data, error } = await client
+    .from('recipes')
+    .select('recipe_id')
+    .eq('recipe_id', recipeId)
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  if (error) {
+    throw new Error(`Failed to verify recipe: ${error.message}`)
+  }
+
+  if (!data) {
+    throw new Error('Recipe not found')
+  }
+}
+
+export async function setRecipeFavorite({
+  recipeId,
+  isFavorite,
+  userId: requestedUserId,
+}) {
+  if (!recipeId) {
+    throw new Error('recipeId is required')
+  }
+
+  const userId = await resolveUserId(requestedUserId)
+  const client = ensureSupabase()
+
+  await ensureRecipeBelongsToUser({ client, recipeId, userId })
+
+  if (isFavorite) {
+    const { error } = await client
+      .from('favorites')
+      .upsert({ user_id: userId, recipe_id: recipeId })
+
+    if (error) {
+      throw new Error(`Failed to favorite recipe: ${error.message}`)
+    }
+  } else {
+    const { error } = await client
+      .from('favorites')
+      .delete()
+      .eq('user_id', userId)
+      .eq('recipe_id', recipeId)
+
+    if (error) {
+      throw new Error(`Failed to unfavorite recipe: ${error.message}`)
+    }
+  }
+
+  return {
+    userId,
+    recipeId,
+    isFavorite: Boolean(isFavorite),
+  }
+}
+
 export async function getCookingHistoryForUser(requestedUserId) {
   const userId = await resolveUserId(requestedUserId)
   const client = ensureSupabase()
@@ -635,6 +699,7 @@ export async function getSavedRecipesForUser(requestedUserId) {
       `
       recipe_id,
       name,
+      user_id,
       cook_time,
       cook_process,
       created_at,
@@ -649,6 +714,10 @@ export async function getSavedRecipesForUser(requestedUserId) {
       cooking_history (
         history_id,
         cooked_at
+      ),
+      favorites (
+        user_id,
+        created_at
       )
     `,
     )
@@ -661,6 +730,6 @@ export async function getSavedRecipesForUser(requestedUserId) {
 
   return {
     userId,
-    recipes: (data ?? []).map(mapStoredRecipe),
+    recipes: (data ?? []).map((recipe) => mapStoredRecipe(recipe, userId)),
   }
 }
