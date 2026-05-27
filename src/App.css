@@ -2,7 +2,6 @@
   min-height: 100svh;
   background: var(--app-bg);
 }
-
 .topbar {
   position: sticky;
   top: 0;
@@ -13,7 +12,8 @@
   gap: 24px;
   padding: 18px clamp(20px, 4vw, 56px);
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 179, 0, 0.94);
+  //background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(18px);
 }
 
