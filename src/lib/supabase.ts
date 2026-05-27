@@ -3,7 +3,7 @@ type SupabaseStatus = {
   configured: boolean
   message: string
 }
-
+//テストささ
 export async function checkSupabaseConnection(): Promise<SupabaseStatus> {
   try {
     const response = await fetch('/api/supabase/status')
