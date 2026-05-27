@@ -5,8 +5,91 @@ import {
   defaultGroqModel,
 } from './groq.js'
 import { checkSupabaseConnection } from './supabase.js'
+import pg from 'pg'
+const { Pool } = pg
 
 const port = Number(process.env.PORT ?? 8787)
+
+// PostgreSQL Pool Initialization
+let pool = null
+if (process.env.DATABASE_URL) {
+  console.log('[node] DATABASE_URL is configured. Initializing DB pool...')
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: process.env.DATABASE_URL.includes('supabase') ? { rejectUnauthorized: false } : false
+  })
+} else {
+  console.warn('[node] DATABASE_URL is not configured. Fridge API will use mock data.')
+}
+
+// Initialize Database Table if database is connected
+async function initializeDatabase() {
+  if (!pool) return
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS ingredient_management (
+        ingredient_id SERIAL PRIMARY KEY,
+        user_id UUID NOT NULL,
+        ingredient_name VARCHAR(255) NOT NULL,
+        category VARCHAR(100) NOT NULL,
+        barcode VARCHAR(100),
+        amount VARCHAR(50),
+        is_opened BOOLEAN DEFAULT FALSE,
+        best_before_date DATE,
+        expiration_date DATE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `)
+
+    const columnsToCheck = [
+      { name: 'amount', type: 'VARCHAR(50)' },
+      { name: 'is_opened', type: 'BOOLEAN DEFAULT FALSE' },
+      { name: 'best_before_date', type: 'DATE' },
+      { name: 'expiration_date', type: 'DATE' }
+    ]
+
+    for (const col of columnsToCheck) {
+      const res = await pool.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name='ingredient_management' AND column_name='${col.name}'
+      `)
+      if (res.rowCount === 0) {
+        console.log(`[node] Adding column ${col.name} to ingredient_management...`)
+        await pool.query(`ALTER TABLE ingredient_management ADD COLUMN ${col.name} ${col.type}`)
+      }
+    }
+
+    const dataCheck = await pool.query('SELECT COUNT(*) FROM ingredient_management')
+    if (parseInt(dataCheck.rows[0].count, 10) === 0) {
+      console.log('[node] Inserting initial sample data to ingredient_management...')
+      const now = new Date()
+      const addDays = (d, n) => {
+        const res = new Date(d)
+        res.setDate(res.getDate() + n)
+        return res.toISOString().split('T')[0]
+      }
+      await pool.query(`
+        INSERT INTO ingredient_management 
+        (user_id, ingredient_name, category, amount, is_opened, best_before_date, expiration_date)
+        VALUES 
+        ('00000000-0000-0000-0000-000000000000', '鮭切り身', '肉・卵・魚', '320g', FALSE, '${addDays(now, 0)}', '${addDays(now, 0)}'),
+        ('00000000-0000-0000-0000-000000000000', '小松菜', '野菜', '1束', FALSE, '${addDays(now, 1)}', '${addDays(now, 1)}'),
+        ('00000000-0000-0000-0000-000000000000', '牛乳', '乳製品', '500ml', TRUE, '${addDays(now, 2)}', '${addDays(now, 2)}'),
+        ('00000000-0000-0000-0000-000000000000', 'キャベツ', '野菜', '1玉', FALSE, '${addDays(now, 5)}', '${addDays(now, 7)}'),
+        ('00000000-0000-0000-0000-000000000000', '納豆', '加工品', '3パック', FALSE, '${addDays(now, 4)}', '${addDays(now, 6)}')
+      `)
+    }
+    console.log('[node] Database initialization completed successfully.')
+  } catch (err) {
+    console.error('[node] Failed to initialize database:', err)
+  }
+}
+
+if (pool) {
+  initializeDatabase()
+}
 
 function sendJson(response, statusCode, payload) {
   response.writeHead(statusCode, {
@@ -50,6 +133,11 @@ const server = createServer((request, response) => {
 
   if (request.method === 'POST' && url.pathname === '/api/groq/chat') {
     handleGroqChat(request, response)
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/fridge') {
+    handleGetFridge(request, response)
     return
   }
 
@@ -103,6 +191,91 @@ async function handleGroqChat(request, response) {
       ok: false,
       message: error instanceof Error ? error.message : 'Groq request failed',
     })
+  }
+}
+
+function getMockData() {
+  const now = new Date()
+  const addDays = (n) => {
+    const res = new Date(now)
+    res.setDate(res.getDate() + n)
+    return res.toISOString().split('T')[0]
+  }
+  const mockIngredients = [
+    { ingredient_id: 1, ingredient_name: '鮭切り身', category: '肉・卵・魚', amount: '320g', is_opened: false, best_before_date: addDays(0), expiration_date: addDays(0) },
+    { ingredient_id: 2, ingredient_name: '小松菜', category: '野菜', amount: '1束', is_opened: false, best_before_date: addDays(1), expiration_date: addDays(1) },
+    { ingredient_id: 3, ingredient_name: '牛乳', category: '乳製品', amount: '500ml', is_opened: true, best_before_date: addDays(2), expiration_date: addDays(2) },
+    { ingredient_id: 4, ingredient_name: 'キャベツ', category: '野菜', amount: '1玉', is_opened: false, best_before_date: addDays(5), expiration_date: addDays(7) },
+    { ingredient_id: 5, ingredient_name: '納豆', category: '加工品', amount: '3パック', is_opened: false, best_before_date: addDays(4), expiration_date: addDays(6) },
+  ]
+
+  const totalCount = mockIngredients.length
+  const uniqueNamesCount = new Set(mockIngredients.map(i => i.ingredient_name)).size
+  const openedCount = mockIngredients.filter(i => i.is_opened).length
+  
+  const nearExpirationCount = mockIngredients.filter(i => {
+    const exp = new Date(i.expiration_date)
+    const diffTime = exp - now
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays >= 0 && diffDays <= 3
+  }).length
+
+  return {
+    summary: {
+      totalCount,
+      uniqueNamesCount,
+      openedCount,
+      nearExpirationCount
+    },
+    ingredients: mockIngredients
+  }
+}
+
+async function handleGetFridge(request, response) {
+  if (!pool) {
+    sendJson(response, 200, getMockData())
+    return
+  }
+
+  try {
+    const res = await pool.query('SELECT * FROM ingredient_management ORDER BY category, ingredient_name')
+    const ingredients = res.rows.map(row => ({
+      ingredient_id: row.ingredient_id,
+      ingredient_name: row.ingredient_name,
+      category: row.category,
+      amount: row.amount || '1個',
+      is_opened: !!row.is_opened,
+      best_before_date: row.best_before_date ? new Date(row.best_before_date).toISOString().split('T')[0] : null,
+      expiration_date: row.expiration_date ? new Date(row.expiration_date).toISOString().split('T')[0] : null
+    }))
+
+    const totalCount = ingredients.length
+    const uniqueNamesCount = new Set(ingredients.map(i => i.ingredient_name)).size
+    const openedCount = ingredients.filter(i => i.is_opened).length
+
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    const nearExpirationCount = ingredients.filter(i => {
+      if (!i.expiration_date) return false
+      const exp = new Date(i.expiration_date)
+      exp.setHours(0, 0, 0, 0)
+      const diffTime = exp - now
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      return diffDays >= 0 && diffDays <= 3
+    }).length
+
+    sendJson(response, 200, {
+      summary: {
+        totalCount,
+        uniqueNamesCount,
+        openedCount,
+        nearExpirationCount
+      },
+      ingredients
+    })
+  } catch (error) {
+    console.error('[node] Database query failed, returning mock data:', error)
+    sendJson(response, 200, getMockData())
   }
 }
 

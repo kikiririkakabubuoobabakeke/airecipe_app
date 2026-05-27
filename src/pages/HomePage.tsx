@@ -12,10 +12,10 @@ import {
   summaryItems,
 } from '../data/home'
 
-export function HomePage() {
+export function HomePage({ onNavigate }: { onNavigate?: (page: 'home' | 'fridge') => void }) {
   return (
     <div className="app-shell">
-      <Topbar />
+      <Topbar onNavigate={onNavigate} />
 
       <main className="home">
         <HeroPanel />

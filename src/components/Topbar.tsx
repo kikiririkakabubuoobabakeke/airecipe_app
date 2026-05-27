@@ -1,9 +1,17 @@
 import { Icon } from './Icon'
 
-export function Topbar() {
+export function Topbar({ onNavigate }: { onNavigate?: (page: 'home' | 'fridge') => void }) {
   return (
     <header className="topbar">
-      <a className="brand" href="/" aria-label="あいくっく ホーム">
+      <a
+        className="brand"
+        href="/"
+        aria-label="あいくっく ホーム"
+        onClick={(e) => {
+          e.preventDefault()
+          onNavigate?.('home')
+        }}
+      >
         <span className="brand__mark">
           <img src="/app-icon.png" alt="" />
         </span>
@@ -14,9 +22,39 @@ export function Topbar() {
       </a>
 
       <nav className="topbar__nav" aria-label="メインメニュー">
-        <a href="#ingredients">食材</a>
-        <a href="#recipes">レシピ</a>
-        <a href="#shopping">買い物</a>
+        <a
+          href="#ingredients"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate?.('fridge')
+          }}
+        >
+          食材
+        </a>
+        <a
+          href="#recipes"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate?.('home')
+            setTimeout(() => {
+              document.getElementById('recipes')?.scrollIntoView({ behavior: 'smooth' })
+            }, 100)
+          }}
+        >
+          レシピ
+        </a>
+        <a
+          href="#shopping"
+          onClick={(e) => {
+            e.preventDefault()
+            onNavigate?.('home')
+            setTimeout(() => {
+              document.getElementById('shopping')?.scrollIntoView({ behavior: 'smooth' })
+            }, 100)
+          }}
+        >
+          買い物
+        </a>
       </nav>
 
       <div className="topbar__actions">

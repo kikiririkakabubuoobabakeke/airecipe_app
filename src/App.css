@@ -650,3 +650,286 @@ a:focus-visible {
     width: 100%;
   }
 }
+
+/* ==========================================================================
+   Fridge Page Styles (冷蔵庫管理一覧)
+   ========================================================================== */
+
+.fridge-container {
+  width: min(1180px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 34px 0 56px;
+}
+
+.fridge-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.fridge-header h1 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 32px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.back-home-button {
+  padding: 0 16px;
+  font-size: 14px;
+}
+
+/* Fridge Summary Cards */
+.fridge-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.fridge-summary .summary-card {
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fridge-summary .summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-soft);
+}
+
+.fridge-summary .card-label {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.fridge-summary .card-value {
+  display: block;
+  margin: 10px 0 4px;
+  color: var(--ink);
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.fridge-summary .card-note {
+  display: block;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+/* Summary Card Modifier for Danger */
+.fridge-summary .summary-card.near-expiration {
+  border-color: rgba(138, 74, 63, 0.2);
+  background: #fffcfb;
+}
+
+.fridge-summary .summary-card.near-expiration .card-value {
+  color: var(--danger);
+}
+
+.fridge-summary .summary-card.near-expiration .card-label {
+  color: var(--danger);
+}
+
+/* Category Filters */
+.category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 28px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.filter-pill {
+  padding: 8px 20px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.filter-pill:hover {
+  border-color: var(--subtle);
+  color: var(--ink);
+}
+
+.filter-pill.active {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: #fff;
+}
+
+/* Fridge Tables */
+.fridge-tables {
+  display: grid;
+  gap: 32px;
+}
+
+.category-table-wrapper {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--shadow-subtle);
+}
+
+.category-title {
+  margin: 0;
+  padding: 14px 20px;
+  background: #64d2ec;
+  /* 明るい水色 */
+  color: var(--ink);
+  font-size: 18px;
+  font-weight: 900;
+  border-bottom: 1px solid var(--line);
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.fridge-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.fridge-table th,
+.fridge-table td {
+  padding: 16px 20px;
+  font-size: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.fridge-table th {
+  color: var(--muted);
+  font-weight: 700;
+  background: #fffcfb;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fridge-table tr:last-child td {
+  border-bottom: none;
+}
+
+.fridge-table tbody tr {
+  transition: background-color 0.15s ease;
+}
+
+.fridge-table tbody tr:hover {
+  background-color: var(--surface-soft);
+}
+
+.ingredient-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+}
+
+.ingredient-name {
+  color: var(--ink);
+}
+
+.opened-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(78, 95, 120, 0.1);
+  color: var(--info);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.expiry-alert {
+  color: var(--danger);
+  font-weight: 800;
+  background: rgba(138, 74, 63, 0.08);
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.opened-row {
+  background-color: #fafbfc;
+}
+
+/* Loading & Error States */
+.fridge-loading,
+.fridge-error,
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  text-align: center;
+  padding: 40px;
+}
+
+.fridge-loading p,
+.fridge-error p,
+.empty-state {
+  color: var(--muted);
+  font-size: 15px;
+  font-weight: 500;
+  margin-top: 16px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--line);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 1020px) {
+  .fridge-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .fridge-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .back-home-button {
+    width: 100%;
+  }
+
+  .fridge-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .fridge-table th,
+  .fridge-table td {
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+}
