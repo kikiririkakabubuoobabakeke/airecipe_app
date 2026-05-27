@@ -60,7 +60,7 @@ export function FridgePage({ onNavigate }: { onNavigate: (page: 'home' | 'fridge
       return acc
     }, {} as Record<string, Ingredient[]>)
     : {}
-
+  //テスト2222222222
   if (loading) {
     return (
       <div className="app-shell">
