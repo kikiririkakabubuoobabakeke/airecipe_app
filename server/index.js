@@ -13,6 +13,10 @@ import {
   markRecipeCooked,
   setRecipeFavorite,
 } from './recipes.js'
+import {
+  importReceiptItems,
+  parseReceiptText,
+} from './receipts.js'
 import { checkSupabaseConnection } from './supabase.js'
 import pg from 'pg'
 const { Pool } = pg
@@ -177,6 +181,16 @@ export async function handleApiRequest(request, response) {
 
   if (request.method === 'POST' && url.pathname === '/api/recipes/favorite') {
     await handleRecipeFavorite(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/receipts/parse') {
+    await handleReceiptParse(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/receipts/import') {
+    await handleReceiptImport(request, response)
     return
   }
 
@@ -430,6 +444,49 @@ async function handleRecipeFavorite(request, response) {
       ok: false,
       message:
         error instanceof Error ? error.message : 'Favorite update failed',
+    })
+  }
+}
+
+async function handleReceiptParse(request, response) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await parseReceiptText({
+      ocrText: body?.ocrText,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Receipt parse failed',
+    })
+  }
+}
+
+async function handleReceiptImport(request, response) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await importReceiptItems({
+      items: body?.items,
+      userId: body?.userId,
+    })
+    const inventory = await getInventoryForUser(result.userId)
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+      inventory: inventory.inventory,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Receipt import failed',
     })
   }
 }

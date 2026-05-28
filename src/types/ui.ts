@@ -28,7 +28,7 @@ export type Feature = {
   tone: FeatureTone
 }
 
-export type AppDestination = 'home' | 'fridge' | 'history'
+export type AppDestination = 'home' | 'fridge' | 'history' | 'receipt'
 
 export type Ingredient = {
   inventoryId?: number
@@ -68,4 +68,15 @@ export type RecipeIngredientAmount = {
   name: string
   amount: number
   unit: string
+}
+
+export type ReceiptIngredientCandidate = {
+  id?: string
+  name: string
+  category: string
+  quantity?: number | null
+  gram?: number | null
+  expirationDate?: string | null
+  memo?: string | null
+  selected: boolean
 }

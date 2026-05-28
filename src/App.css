@@ -917,6 +917,147 @@ button:disabled {
   flex: 0 0 auto;
 }
 
+.receipt-page {
+  width: min(1080px, calc(100% - 40px));
+  margin: 0 auto;
+  padding: 34px 0 56px;
+}
+
+.receipt-layout {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.8fr) minmax(0, 1.2fr);
+  gap: 18px;
+}
+
+.receipt-file-field {
+  display: grid;
+  min-height: 46px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.receipt-file-field input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.receipt-preview,
+.receipt-placeholder {
+  width: 100%;
+  margin-top: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.receipt-preview {
+  display: block;
+  max-height: 420px;
+  object-fit: contain;
+}
+
+.receipt-placeholder {
+  display: grid;
+  min-height: 260px;
+  place-items: center;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.receipt-progress {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.receipt-progress strong {
+  color: var(--ink);
+}
+
+.receipt-text-panel textarea {
+  width: 100%;
+  min-height: 342px;
+  resize: vertical;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  line-height: 1.7;
+}
+
+.receipt-candidates {
+  margin-top: 18px;
+}
+
+.receipt-candidates .primary-button {
+  padding: 0 18px;
+}
+
+.receipt-candidate-list {
+  display: grid;
+  gap: 12px;
+}
+
+.receipt-candidate {
+  display: grid;
+  grid-template-columns: 86px minmax(150px, 1.4fr) minmax(120px, 1fr) 90px 90px 150px;
+  gap: 10px;
+  align-items: end;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.receipt-candidate label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.receipt-candidate input {
+  min-height: 40px;
+  width: 100%;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+}
+
+.receipt-check {
+  align-items: center;
+  grid-template-columns: auto 1fr;
+  min-height: 40px;
+}
+
+.receipt-check input {
+  width: 18px;
+  min-height: 18px;
+  padding: 0;
+}
+
 @media (max-width: 1020px) {
   .topbar {
     grid-template-columns: 1fr auto;
@@ -928,8 +1069,13 @@ button:disabled {
 
   .hero-panel,
   .dashboard-grid,
-  .recipe-detail__grid {
+  .recipe-detail__grid,
+  .receipt-layout {
     grid-template-columns: 1fr;
+  }
+
+  .receipt-candidate {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .meal-preview {
@@ -1024,6 +1170,11 @@ button:disabled {
     padding-top: 18px;
   }
 
+  .receipt-page {
+    width: min(100% - 28px, 1080px);
+    padding-top: 18px;
+  }
+
   .recipe-detail__hero h1 {
     font-size: 34px;
   }
@@ -1032,8 +1183,13 @@ button:disabled {
   .cook-complete-panel .primary-button,
   .cook-complete-panel .serving-field,
   .recipe-detail__toolbar .secondary-button,
-  .favorite-button {
+  .favorite-button,
+  .receipt-candidates .primary-button {
     width: 100%;
+  }
+
+  .receipt-candidate {
+    grid-template-columns: 1fr;
   }
 }
 

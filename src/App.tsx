@@ -6,6 +6,7 @@ import { HomePage } from './pages/HomePage'
 import { FridgePage } from './pages/FridgePage'
 import { RecipeDetailPage } from './pages/RecipeDetailPage'
 import { CookingHistoryPage } from './pages/CookingHistoryPage'
+import { ReceiptScanPage } from './pages/ReceiptScanPage'
 import type { AppDestination, Recipe } from './types/ui'
 
 type Page = AppDestination | 'recipe'
@@ -36,6 +37,10 @@ function App() {
         onSelectRecipe={handleSelectRecipe}
       />
     )
+  }
+
+  if (currentPage === 'receipt') {
+    return <ReceiptScanPage onNavigate={handleNavigate} />
   }
 
   if (currentPage === 'recipe' && selectedRecipe) {

@@ -136,6 +136,7 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
         <HeroPanel
           isGenerating={isGenerating}
           onGenerateRecipe={handleGenerateRecipe}
+          onScanReceipt={() => onNavigate?.('receipt')}
           onShowRecipes={() => onNavigate?.('history')}
         />
 
@@ -167,6 +168,8 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
           <IngredientsPanel ingredients={ingredients} />
           <RecipesPanel
             recipes={recipes}
+            isGenerating={isGenerating}
+            onGenerateRecipe={handleGenerateRecipe}
             onSelectRecipe={onSelectRecipe}
             onCookRecipe={openCookedDialog}
           />

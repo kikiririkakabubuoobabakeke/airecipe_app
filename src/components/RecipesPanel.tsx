@@ -2,12 +2,16 @@ import type { Recipe } from '../types/ui'
 
 type RecipesPanelProps = {
   recipes: Recipe[]
+  isGenerating?: boolean
+  onGenerateRecipe?: () => void
   onSelectRecipe?: (recipe: Recipe) => void
   onCookRecipe?: (recipe: Recipe) => void
 }
 
 export function RecipesPanel({
   recipes,
+  isGenerating = false,
+  onGenerateRecipe,
   onSelectRecipe,
   onCookRecipe,
 }: RecipesPanelProps) {
@@ -18,8 +22,13 @@ export function RecipesPanel({
           <p className="eyebrow">レシピ候補</p>
           <h2 id="recipes-title">在庫から作れる献立</h2>
         </div>
-        <button type="button" className="small-button">
-          再生成
+        <button
+          type="button"
+          className="small-button"
+          onClick={onGenerateRecipe}
+          disabled={isGenerating}
+        >
+          {isGenerating ? '生成中...' : '再生成'}
         </button>
       </div>
       <div className="recipe-stack">
