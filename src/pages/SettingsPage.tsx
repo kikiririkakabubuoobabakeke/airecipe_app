@@ -53,7 +53,7 @@ export function SettingsPage({
           setPreferencesError(
             error instanceof Error
               ? error.message
-              : t('settings.preferencesLoadFailed'),
+              : 'settings.preferencesLoadFailed',
           )
         }
       })
@@ -66,7 +66,7 @@ export function SettingsPage({
     return () => {
       isMounted = false
     }
-  }, [t])
+  }, [user.id])
 
   function updatePreference<K extends keyof UserPreferences>(
     key: K,
@@ -223,7 +223,9 @@ export function SettingsPage({
 
             {preferencesError ? (
               <p className="status-message" role="alert">
-                {preferencesError}
+                {preferencesError === 'settings.preferencesLoadFailed'
+                  ? t('settings.preferencesLoadFailed')
+                  : preferencesError}
               </p>
             ) : null}
 
