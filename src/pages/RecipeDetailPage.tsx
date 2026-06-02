@@ -9,6 +9,7 @@ type RecipeDetailPageProps = {
   onBack: () => void
   onNavigate?: (page: AppDestination) => void
   onInventoryUpdated?: (ingredients: Ingredient[]) => void
+  onLogout?: () => void | Promise<void>
 }
 
 export function RecipeDetailPage({
@@ -16,6 +17,7 @@ export function RecipeDetailPage({
   onBack,
   onNavigate,
   onInventoryUpdated,
+  onLogout,
 }: RecipeDetailPageProps) {
   const [servings, setServings] = useState(1)
   const [isCooking, setIsCooking] = useState(false)
@@ -84,7 +86,7 @@ export function RecipeDetailPage({
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="recipe-detail">
         <div className="recipe-detail__toolbar">

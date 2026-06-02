@@ -5,6 +5,7 @@ import type { AppDestination } from '../types/ui'
 
 type GeminiTestPageProps = {
   onNavigate?: (page: AppDestination) => void
+  onLogout?: () => void | Promise<void>
 }
 
 const geminiTestModel = 'gemma-4-31b-it'
@@ -18,7 +19,10 @@ function readFileAsDataUrl(file: File) {
   })
 }
 
-export function GeminiTestPage({ onNavigate }: GeminiTestPageProps) {
+export function GeminiTestPage({
+  onNavigate,
+  onLogout,
+}: GeminiTestPageProps) {
   const [prompt, setPrompt] = useState(
     'この画像に写っているものを日本語で簡潔に説明してください。',
   )
@@ -93,7 +97,7 @@ export function GeminiTestPage({ onNavigate }: GeminiTestPageProps) {
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="test-page">
         <div className="fridge-header">

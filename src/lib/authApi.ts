@@ -10,6 +10,11 @@ export type AuthUser = {
   email?: string
 }
 
+export type AuthSessionResult = {
+  user: AuthUser
+  expiresAt: number | null
+}
+
 async function readJson<T>(response: Response): Promise<T> {
   const responseText = await response.text()
   let payload: ApiResponse<T>
@@ -40,21 +45,20 @@ async function readJson<T>(response: Response): Promise<T> {
 export async function loginWithPassword(email: string, password: string) {
   const response = await fetch('/api/auth/login', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ email, password }),
   })
 
-  return readJson<{
-    user: AuthUser
-    expiresAt: number | null
-  }>(response)
+  return readJson<AuthSessionResult>(response)
 }
 
 export async function registerWithPassword(email: string, password: string) {
   const response = await fetch('/api/auth/register', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -70,6 +74,7 @@ export async function registerWithPassword(email: string, password: string) {
 export async function createGoogleLoginUrl(redirectTo: string) {
   const response = await fetch('/api/auth/google', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -79,12 +84,50 @@ export async function createGoogleLoginUrl(redirectTo: string) {
   return readJson<{ url: string }>(response)
 }
 
+export async function createSessionFromOAuthTokens({
+  accessToken,
+  refreshToken,
+}: {
+  accessToken: string
+  refreshToken: string
+}) {
+  const response = await fetch('/api/auth/session', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ accessToken, refreshToken }),
+  })
+
+  return readJson<AuthSessionResult>(response)
+}
+
+export async function getCurrentUser() {
+  const response = await fetch('/api/auth/me', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+
+  return readJson<{ user: AuthUser }>(response)
+}
+
+export async function logout() {
+  const response = await fetch('/api/auth/logout', {
+    method: 'POST',
+    credentials: 'same-origin',
+  })
+
+  return readJson<Record<string, never>>(response)
+}
+
 export async function sendPasswordResetEmail(
   email: string,
   redirectTo: string,
 ) {
   const response = await fetch('/api/auth/password-reset', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },

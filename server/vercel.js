@@ -22,15 +22,19 @@ export async function handleVercelRequest(request) {
   }
 
   let status = 200
-  let responseHeaders = {}
+  const responseHeaders = new Headers()
   let responseBody = ''
 
   const nodeResponse = {
     writeHead(statusCode, headersToWrite = {}) {
       status = statusCode
-      responseHeaders = {
-        ...responseHeaders,
-        ...headersToWrite,
+
+      for (const [name, value] of Object.entries(headersToWrite)) {
+        if (Array.isArray(value)) {
+          value.forEach((item) => responseHeaders.append(name, item))
+        } else {
+          responseHeaders.set(name, value)
+        }
       }
     },
     end(body = '') {

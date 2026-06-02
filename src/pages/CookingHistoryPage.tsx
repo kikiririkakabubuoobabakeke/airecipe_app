@@ -6,6 +6,7 @@ import type { AppDestination, Recipe } from '../types/ui'
 type CookingHistoryPageProps = {
   onNavigate?: (page: AppDestination) => void
   onSelectRecipe: (recipe: Recipe) => void
+  onLogout?: () => void | Promise<void>
 }
 
 type RecipeFilter = 'all' | 'uncooked' | 'cooked' | 'favorite'
@@ -48,6 +49,7 @@ function formatRecipeStatus(recipe: Recipe) {
 export function CookingHistoryPage({
   onNavigate,
   onSelectRecipe,
+  onLogout,
 }: CookingHistoryPageProps) {
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -117,7 +119,7 @@ export function CookingHistoryPage({
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="history-page">
         <div className="fridge-header">

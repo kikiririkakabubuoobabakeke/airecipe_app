@@ -48,9 +48,14 @@ function buildSummaryItems(ingredients: Ingredient[], recipes: Recipe[]) {
 type HomePageProps = {
   onNavigate?: (page: AppDestination) => void
   onSelectRecipe?: (recipe: Recipe) => void
+  onLogout?: () => void | Promise<void>
 }
 
-export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
+export function HomePage({
+  onNavigate,
+  onSelectRecipe,
+  onLogout,
+}: HomePageProps) {
   const [ingredients, setIngredients] =
     useState<Ingredient[]>(expiringIngredients)
   const [recipes, setRecipes] = useState<Recipe[]>(suggestedRecipes)
@@ -130,7 +135,7 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="home">
         <HeroPanel

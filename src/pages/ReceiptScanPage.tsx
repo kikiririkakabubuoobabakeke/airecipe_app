@@ -6,6 +6,7 @@ import type { AppDestination, ReceiptIngredientCandidate } from '../types/ui'
 
 type ReceiptScanPageProps = {
   onNavigate?: (page: AppDestination) => void
+  onLogout?: () => void | Promise<void>
 }
 
 function createCandidateId() {
@@ -118,7 +119,10 @@ function localFallbackParseReceiptText(text: string) {
     .filter((item) => item.name)
 }
 
-export function ReceiptScanPage({ onNavigate }: ReceiptScanPageProps) {
+export function ReceiptScanPage({
+  onNavigate,
+  onLogout,
+}: ReceiptScanPageProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -344,7 +348,7 @@ export function ReceiptScanPage({ onNavigate }: ReceiptScanPageProps) {
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="receipt-page">
         <div className="fridge-header">

@@ -1,19 +1,20 @@
 import { Icon } from './Icon'
 import type { AppDestination } from '../types/ui'
 
-export function Topbar({
-  onNavigate,
-}: {
+type TopbarProps = {
   onNavigate?: (page: AppDestination) => void
-}) {
+  onLogout?: () => void | Promise<void>
+}
+
+export function Topbar({ onNavigate, onLogout }: TopbarProps) {
   return (
     <header className="topbar">
       <a
         className="brand"
         href="/"
-        aria-label="あいくっく ホーム"
-        onClick={(e) => {
-          e.preventDefault()
+        aria-label="あいくっくホーム"
+        onClick={(event) => {
+          event.preventDefault()
           onNavigate?.('home')
         }}
       >
@@ -29,8 +30,8 @@ export function Topbar({
       <nav className="topbar__nav" aria-label="メインメニュー">
         <a
           href="#ingredients"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('fridge')
           }}
         >
@@ -38,11 +39,13 @@ export function Topbar({
         </a>
         <a
           href="#recipes"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('home')
             setTimeout(() => {
-              document.getElementById('recipes')?.scrollIntoView({ behavior: 'smooth' })
+              document
+                .getElementById('recipes')
+                ?.scrollIntoView({ behavior: 'smooth' })
             }, 100)
           }}
         >
@@ -50,8 +53,8 @@ export function Topbar({
         </a>
         <a
           href="#receipt"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('receipt')
           }}
         >
@@ -59,8 +62,8 @@ export function Topbar({
         </a>
         <a
           href="#history"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('history')
           }}
         >
@@ -75,10 +78,17 @@ export function Topbar({
         <button
           type="button"
           className="account-button"
-          onClick={() => onNavigate?.('login')}
+          onClick={() => {
+            if (onLogout) {
+              void onLogout()
+              return
+            }
+
+            onNavigate?.('login')
+          }}
         >
           <Icon name="user" />
-          <span>アカウント</span>
+          <span>{onLogout ? 'ログアウト' : 'アカウント'}</span>
         </button>
       </div>
     </header>

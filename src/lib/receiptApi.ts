@@ -41,6 +41,7 @@ async function readJson<T>(response: Response): Promise<T> {
 export async function parseReceiptText(ocrText: string) {
   const response = await fetch('/api/receipts/parse', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -57,6 +58,7 @@ export async function importReceiptItems(
 ) {
   const response = await fetch('/api/receipts/import', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },

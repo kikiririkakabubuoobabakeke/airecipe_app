@@ -118,13 +118,8 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
         {/* ロゴ */}
         <div style={styles.logoWrapper}>
           <div style={styles.logoBox}>
-            <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
-              <path d="M18 4C18 4 8 10 8 20C8 25.5 12.5 30 18 30C23.5 30 28 25.5 28 20C28 10 18 4 18 4Z" fill="#333333" opacity="0.9"/>
-              <path d="M18 10C18 10 13 14 13 20C13 22.8 15.2 25 18 25C20.8 25 23 22.8 23 20C23 14 18 10 18 10Z" fill="#fff" opacity="0.85"/>
-              <circle cx="18" cy="20" r="3" fill="#333333"/>
-            </svg>
+            <img src="/app-icon.png" alt="" style={styles.logoImage} />
           </div>
-          <p style={styles.logoText}>Mise en Place AI</p>
         </div>
 
         {/* メールアドレス入力 */}
@@ -256,8 +251,6 @@ export default function LoginScreen({ onAuthenticated }: LoginScreenProps) {
       </form>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;600&family=DM+Sans:wght@400;500;600&display=swap');
-
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         input::placeholder { color: #9AA1AA; }
@@ -281,7 +274,7 @@ const styles: Record<string, CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "inherit",
     position: "relative",
     overflow: "hidden",
   },
@@ -333,19 +326,19 @@ const styles: Record<string, CSSProperties> = {
     width: 64,
     height: 64,
     background: "#F6F7F8",
-    borderRadius: 16,
+    borderRadius: 8,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     boxShadow: "0 2px 12px rgba(31,41,51,0.08)",
     border: "1px solid #E5E7EB",
+    overflow: "hidden",
   },
-  logoText: {
-    fontFamily: "'Shippori Mincho', serif",
-    fontSize: 15,
-    fontWeight: 600,
-    color: "#333333",
-    letterSpacing: "0.06em",
+  logoImage: {
+    width: "100%",
+    height: "100%",
+    display: "block",
+    objectFit: "cover",
   },
   inputGroup: {
     display: "flex",
@@ -371,7 +364,7 @@ const styles: Record<string, CSSProperties> = {
     background: "#FFFFFF",
     outline: "none",
     transition: "border-color 0.2s, box-shadow 0.2s",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "inherit",
   },
   forgotLink: {
     fontSize: 12,
@@ -385,7 +378,7 @@ const styles: Record<string, CSSProperties> = {
     marginTop: 2,
     padding: 0,
     letterSpacing: "0.02em",
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "inherit",
   },
   statusMessage: {
     margin: "-2px 0 14px",
@@ -414,7 +407,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#fff",
     fontSize: 15,
     fontWeight: 600,
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "inherit",
     letterSpacing: "0.03em",
     transition: "background 0.2s, opacity 0.2s",
     marginTop: 6,
@@ -445,7 +438,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#333333",
     fontSize: 15,
     fontWeight: 500,
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "inherit",
     cursor: "pointer",
     transition: "background 0.2s, border-color 0.2s",
     marginBottom: 12,
@@ -459,7 +452,7 @@ const styles: Record<string, CSSProperties> = {
     color: "#333333",
     fontSize: 15,
     fontWeight: 500,
-    fontFamily: "'DM Sans', sans-serif",
+    fontFamily: "inherit",
     cursor: "pointer",
     display: "flex",
     alignItems: "center",

@@ -37,7 +37,9 @@ async function readJson<T>(response: Response): Promise<T> {
 }
 
 export async function fetchInventory() {
-  const response = await fetch('/api/inventory')
+  const response = await fetch('/api/inventory', {
+    credentials: 'same-origin',
+  })
   return readJson<{
     userId: string
     inventory: Ingredient[]
@@ -47,6 +49,7 @@ export async function fetchInventory() {
 export async function generateRecipes(servings = 2) {
   const response = await fetch('/api/recipes/generate', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -64,6 +67,7 @@ export async function generateRecipes(servings = 2) {
 export async function markRecipeCooked(recipeId: string, servings: number) {
   const response = await fetch('/api/recipes/cooked', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -82,7 +86,10 @@ export async function markRecipeCooked(recipeId: string, servings: number) {
 }
 
 export async function fetchCookingHistory() {
-  const response = await fetch('/api/cooking-history', { cache: 'no-store' })
+  const response = await fetch('/api/cooking-history', {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  })
   return readJson<{
     userId: string
     recipes: Recipe[]
@@ -90,7 +97,10 @@ export async function fetchCookingHistory() {
 }
 
 export async function fetchSavedRecipes() {
-  const response = await fetch('/api/recipes/saved', { cache: 'no-store' })
+  const response = await fetch('/api/recipes/saved', {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  })
   return readJson<{
     userId: string
     recipes: Recipe[]
@@ -103,6 +113,7 @@ export async function setRecipeFavorite(
 ) {
   const response = await fetch('/api/recipes/favorite', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },

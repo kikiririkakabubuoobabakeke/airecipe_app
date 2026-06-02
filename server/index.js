@@ -10,7 +10,9 @@ import {
   generateGeminiContent,
 } from './gemini.js'
 import {
+  createSessionFromTokens,
   createGoogleLoginUrl,
+  getUserFromAccessToken,
   sendPasswordResetEmail,
   signInWithPassword,
   signUpWithPassword,
@@ -33,6 +35,8 @@ import pg from 'pg'
 const { Pool } = pg
 
 const port = Number(process.env.PORT ?? 8787)
+const authAccessCookieName = 'ai_recipe_access_token'
+const authRefreshCookieName = 'ai_recipe_refresh_token'
 
 // PostgreSQL Pool Initialization
 let pool = null
@@ -115,14 +119,110 @@ if (pool) {
   initializeDatabase()
 }
 
-function sendJson(response, statusCode, payload) {
+function sendJson(response, statusCode, payload, extraHeaders = {}) {
   response.writeHead(statusCode, {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'content-type',
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
     'Content-Type': 'application/json; charset=utf-8',
+    ...extraHeaders,
   })
   response.end(JSON.stringify(payload))
+}
+
+function parseCookies(cookieHeader = '') {
+  return cookieHeader.split(';').reduce((cookies, cookiePart) => {
+    const [name, ...valueParts] = cookiePart.trim().split('=')
+
+    if (!name) {
+      return cookies
+    }
+
+    const value = valueParts.join('=') ?? ''
+
+    try {
+      cookies[name] = decodeURIComponent(value)
+    } catch {
+      cookies[name] = value
+    }
+
+    return cookies
+  }, {})
+}
+
+function isLocalRequest(request) {
+  const host = request.headers.host ?? ''
+  return host.startsWith('localhost') || host.startsWith('127.0.0.1')
+}
+
+function serializeCookie(request, name, value, options = {}) {
+  const secure = !isLocalRequest(request)
+  const parts = [
+    `${name}=${encodeURIComponent(value)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+  ]
+
+  if (secure) {
+    parts.push('Secure')
+  }
+
+  if (options.maxAge !== undefined) {
+    parts.push(`Max-Age=${options.maxAge}`)
+  }
+
+  return parts.join('; ')
+}
+
+function createAuthCookieHeaders(request, session) {
+  if (!session?.accessToken || !session?.refreshToken) {
+    return {}
+  }
+
+  const accessMaxAge =
+    session.expiresIn ??
+    (session.expiresAt
+      ? Math.max(0, session.expiresAt - Math.floor(Date.now() / 1000))
+      : 60 * 60)
+
+  return {
+    'Set-Cookie': [
+      serializeCookie(request, authAccessCookieName, session.accessToken, {
+        maxAge: accessMaxAge,
+      }),
+      serializeCookie(request, authRefreshCookieName, session.refreshToken, {
+        maxAge: 60 * 60 * 24 * 30,
+      }),
+    ],
+  }
+}
+
+function createClearAuthCookieHeaders(request) {
+  return {
+    'Set-Cookie': [
+      serializeCookie(request, authAccessCookieName, '', { maxAge: 0 }),
+      serializeCookie(request, authRefreshCookieName, '', { maxAge: 0 }),
+    ],
+  }
+}
+
+async function requireAuthenticatedUser(request) {
+  const cookies = parseCookies(request.headers.cookie ?? '')
+  const accessToken = cookies[authAccessCookieName]
+
+  if (!accessToken) {
+    throw new Error('Login is required')
+  }
+
+  const user = await getUserFromAccessToken(accessToken)
+
+  if (!user?.id) {
+    throw new Error('Login is required')
+  }
+
+  return user
 }
 
 export async function handleApiRequest(request, response) {
@@ -131,6 +231,7 @@ export async function handleApiRequest(request, response) {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Headers': 'content-type',
       'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+      'Access-Control-Allow-Credentials': 'true',
     })
     response.end()
     return
@@ -161,28 +262,8 @@ export async function handleApiRequest(request, response) {
     return
   }
 
-  if (request.method === 'GET' && url.pathname === '/api/inventory') {
-    await handleInventory(url, response)
-    return
-  }
-
-  if (request.method === 'GET' && url.pathname === '/api/cooking-history') {
-    await handleCookingHistory(url, response)
-    return
-  }
-
-  if (request.method === 'GET' && url.pathname === '/api/recipes/saved') {
-    await handleSavedRecipes(url, response)
-    return
-  }
-
-  if (request.method === 'POST' && url.pathname === '/api/groq/chat') {
-    await handleGroqChat(request, response)
-    return
-  }
-
-  if (request.method === 'POST' && url.pathname === '/api/gemini/generate') {
-    await handleGeminiGenerate(request, response)
+  if (request.method === 'GET' && url.pathname === '/api/auth/me') {
+    await handleAuthMe(request, response)
     return
   }
 
@@ -201,28 +282,75 @@ export async function handleApiRequest(request, response) {
     return
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/auth/session') {
+    await handleAuthSession(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/logout') {
+    await handleAuthLogout(request, response)
+    return
+  }
+
   if (request.method === 'POST' && url.pathname === '/api/auth/password-reset') {
     await handleAuthPasswordReset(request, response)
     return
   }
 
+  let authUser
+
+  try {
+    authUser = await requireAuthenticatedUser(request)
+  } catch {
+    sendJson(response, 401, {
+      ok: false,
+      message: 'Login is required',
+    })
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/inventory') {
+    await handleInventory(authUser.id, response)
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/cooking-history') {
+    await handleCookingHistory(authUser.id, response)
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/recipes/saved') {
+    await handleSavedRecipes(authUser.id, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/groq/chat') {
+    await handleGroqChat(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/gemini/generate') {
+    await handleGeminiGenerate(request, response)
+    return
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/fridge') {
-    await handleGetFridge(request, response)
+    await handleUserFridge(authUser.id, response)
     return
   }
 
   if (request.method === 'POST' && url.pathname === '/api/recipes/generate') {
-    await handleRecipeGeneration(request, response)
+    await handleRecipeGeneration(request, response, authUser.id)
     return
   }
 
   if (request.method === 'POST' && url.pathname === '/api/recipes/cooked') {
-    await handleRecipeCooked(request, response)
+    await handleRecipeCooked(request, response, authUser.id)
     return
   }
 
   if (request.method === 'POST' && url.pathname === '/api/recipes/favorite') {
-    await handleRecipeFavorite(request, response)
+    await handleRecipeFavorite(request, response, authUser.id)
     return
   }
 
@@ -232,7 +360,7 @@ export async function handleApiRequest(request, response) {
   }
 
   if (request.method === 'POST' && url.pathname === '/api/receipts/import') {
-    await handleReceiptImport(request, response)
+    await handleReceiptImport(request, response, authUser.id)
     return
   }
 
@@ -329,10 +457,16 @@ async function handleAuthLogin(request, response) {
       password: body.password,
     })
 
-    sendJson(response, 200, {
-      ok: true,
-      ...result,
-    })
+    sendJson(
+      response,
+      200,
+      {
+        ok: true,
+        user: result.user,
+        expiresAt: result.expiresAt,
+      },
+      createAuthCookieHeaders(request, result.session),
+    )
   } catch (error) {
     sendJson(response, 401, {
       ok: false,
@@ -358,10 +492,16 @@ async function handleAuthRegister(request, response) {
       password: body.password,
     })
 
-    sendJson(response, 200, {
-      ok: true,
-      ...result,
-    })
+    sendJson(
+      response,
+      200,
+      {
+        ok: true,
+        user: result.user,
+        needsEmailConfirmation: result.needsEmailConfirmation,
+      },
+      createAuthCookieHeaders(request, result.session),
+    )
   } catch (error) {
     sendJson(response, 400, {
       ok: false,
@@ -388,6 +528,60 @@ async function handleAuthGoogle(request, response) {
         error instanceof Error ? error.message : 'Google login failed',
     })
   }
+}
+
+async function handleAuthSession(request, response) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await createSessionFromTokens({
+      accessToken: body?.accessToken,
+      refreshToken: body?.refreshToken,
+    })
+
+    sendJson(
+      response,
+      200,
+      {
+        ok: true,
+        user: result.user,
+        expiresAt: result.expiresAt,
+      },
+      createAuthCookieHeaders(request, result.session),
+    )
+  } catch (error) {
+    sendJson(response, 401, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Auth session failed',
+    })
+  }
+}
+
+async function handleAuthMe(request, response) {
+  try {
+    const user = await requireAuthenticatedUser(request)
+
+    sendJson(response, 200, {
+      ok: true,
+      user,
+    })
+  } catch {
+    sendJson(response, 401, {
+      ok: false,
+      message: 'Login is required',
+    })
+  }
+}
+
+async function handleAuthLogout(request, response) {
+  sendJson(
+    response,
+    200,
+    {
+      ok: true,
+    },
+    createClearAuthCookieHeaders(request),
+  )
 }
 
 async function handleAuthPasswordReset(request, response) {
@@ -457,14 +651,17 @@ function getMockData() {
   }
 }
 
-async function handleGetFridge(request, response) {
+async function handleGetFridge(userId, response) {
   if (!pool) {
     sendJson(response, 200, getMockData())
     return
   }
 
   try {
-    const res = await pool.query('SELECT * FROM ingredient_management ORDER BY category, ingredient_name')
+    const res = await pool.query(
+      'SELECT * FROM ingredient_management WHERE user_id = $1 ORDER BY category, ingredient_name',
+      [userId],
+    )
     const ingredients = res.rows.map(row => ({
       ingredient_id: row.ingredient_id,
       ingredient_name: row.ingredient_name,
@@ -505,9 +702,66 @@ async function handleGetFridge(request, response) {
   }
 }
 
-async function handleInventory(url, response) {
+async function handleUserFridge(userId, response) {
   try {
-    const inventory = await getInventoryForUser(url.searchParams.get('userId'))
+    const { inventory } = await getInventoryForUser(userId)
+    const ingredients = inventory.map((item, index) => ({
+      ingredient_id: item.inventoryId ?? item.ingredientId ?? index + 1,
+      ingredient_name: item.name,
+      category: item.category ?? 'その他',
+      amount: item.amount,
+      is_opened: false,
+      best_before_date: null,
+      expiration_date: item.expirationDate ?? null,
+    }))
+    const totalCount = ingredients.length
+    const uniqueNamesCount = new Set(
+      ingredients.map((item) => item.ingredient_name),
+    ).size
+    const openedCount = ingredients.filter((item) => item.is_opened).length
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    const nearExpirationCount = ingredients.filter((item) => {
+      if (!item.expiration_date) {
+        return false
+      }
+
+      const expiration = new Date(`${item.expiration_date}T00:00:00`)
+
+      if (Number.isNaN(expiration.getTime())) {
+        return false
+      }
+
+      const diffDays = Math.ceil(
+        (expiration.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      )
+
+      return diffDays >= 0 && diffDays <= 3
+    }).length
+
+    sendJson(response, 200, {
+      ok: true,
+      userId,
+      summary: {
+        totalCount,
+        uniqueNamesCount,
+        openedCount,
+        nearExpirationCount,
+      },
+      ingredients,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Fridge request failed',
+    })
+  }
+}
+
+async function handleInventory(userId, response) {
+  try {
+    const inventory = await getInventoryForUser(userId)
     sendJson(response, 200, {
       ok: true,
       ...inventory,
@@ -521,11 +775,11 @@ async function handleInventory(url, response) {
   }
 }
 
-async function handleRecipeGeneration(request, response) {
+async function handleRecipeGeneration(request, response, userId) {
   try {
     const body = await readJsonBody(request)
     const result = await generateAndSaveRecipes({
-      userId: body?.userId,
+      userId,
       servings: body?.servings,
     })
 
@@ -542,9 +796,9 @@ async function handleRecipeGeneration(request, response) {
   }
 }
 
-async function handleCookingHistory(url, response) {
+async function handleCookingHistory(userId, response) {
   try {
-    const history = await getCookingHistoryForUser(url.searchParams.get('userId'))
+    const history = await getCookingHistoryForUser(userId)
     sendJson(response, 200, {
       ok: true,
       ...history,
@@ -560,9 +814,9 @@ async function handleCookingHistory(url, response) {
   }
 }
 
-async function handleSavedRecipes(url, response) {
+async function handleSavedRecipes(userId, response) {
   try {
-    const recipes = await getSavedRecipesForUser(url.searchParams.get('userId'))
+    const recipes = await getSavedRecipesForUser(userId)
     sendJson(response, 200, {
       ok: true,
       ...recipes,
@@ -578,13 +832,13 @@ async function handleSavedRecipes(url, response) {
   }
 }
 
-async function handleRecipeCooked(request, response) {
+async function handleRecipeCooked(request, response, userId) {
   try {
     const body = await readJsonBody(request)
     const result = await markRecipeCooked({
       recipeId: body?.recipeId,
       servings: body?.servings,
-      userId: body?.userId,
+      userId,
     })
 
     sendJson(response, 200, {
@@ -599,13 +853,13 @@ async function handleRecipeCooked(request, response) {
   }
 }
 
-async function handleRecipeFavorite(request, response) {
+async function handleRecipeFavorite(request, response, userId) {
   try {
     const body = await readJsonBody(request)
     const result = await setRecipeFavorite({
       recipeId: body?.recipeId,
       isFavorite: body?.isFavorite,
-      userId: body?.userId,
+      userId,
     })
 
     sendJson(response, 200, {
@@ -656,12 +910,12 @@ async function handleReceiptParse(request, response) {
   }
 }
 
-async function handleReceiptImport(request, response) {
+async function handleReceiptImport(request, response, userId) {
   try {
     const body = await readJsonBody(request)
     const result = await importReceiptItems({
       items: body?.items,
-      userId: body?.userId,
+      userId,
     })
     const inventory = await getInventoryForUser(result.userId)
 
