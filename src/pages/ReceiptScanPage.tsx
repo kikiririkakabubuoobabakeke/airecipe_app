@@ -597,7 +597,7 @@ export function ReceiptScanPage({ onNavigate }: ReceiptScanPageProps) {
               </button>
             </div>
             <p className="empty-text">
-              OCRで拾えなかった食材は手動で追加できます。
+              レシピ登録で認識しない食材は手動で追加できます。
             </p>
           </section>
         )}
