@@ -8,12 +8,21 @@ import { RecipeDetailPage } from './pages/RecipeDetailPage'
 import { CookingHistoryPage } from './pages/CookingHistoryPage'
 import { ReceiptScanPage } from './pages/ReceiptScanPage'
 import { GeminiTestPage } from './pages/GeminiTestPage'
+import LoginScreen from './pages/LoginScreen'
 import type { AppDestination, Recipe } from './types/ui'
 
 type Page = AppDestination | 'recipe'
 
 function getPageFromPath(): AppDestination {
-  return window.location.pathname === '/test' ? 'test' : 'home'
+  if (window.location.pathname === '/test') {
+    return 'test'
+  }
+
+  if (window.location.pathname === '/login') {
+    return 'login'
+  }
+
+  return 'home'
 }
 
 function App() {
@@ -34,7 +43,11 @@ function App() {
   function handleNavigate(page: AppDestination) {
     if (page === 'test') {
       window.history.pushState({}, '', '/test')
+    } else if (page === 'login') {
+      window.history.pushState({}, '', '/login')
     } else if (window.location.pathname === '/test') {
+      window.history.pushState({}, '', '/')
+    } else if (window.location.pathname === '/login') {
       window.history.pushState({}, '', '/')
     }
 
@@ -66,6 +79,10 @@ function App() {
 
   if (currentPage === 'test') {
     return <GeminiTestPage onNavigate={handleNavigate} />
+  }
+
+  if (currentPage === 'login') {
+    return <LoginScreen onAuthenticated={() => handleNavigate('home')} />
   }
 
   if (currentPage === 'recipe' && selectedRecipe) {

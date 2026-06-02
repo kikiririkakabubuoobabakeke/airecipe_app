@@ -72,7 +72,11 @@ export function Topbar({
         <button type="button" className="icon-button" aria-label="通知">
           <Icon name="bell" />
         </button>
-        <button type="button" className="account-button">
+        <button
+          type="button"
+          className="account-button"
+          onClick={() => onNavigate?.('login')}
+        >
           <Icon name="user" />
           <span>アカウント</span>
         </button>

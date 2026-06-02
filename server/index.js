@@ -10,6 +10,12 @@ import {
   generateGeminiContent,
 } from './gemini.js'
 import {
+  createGoogleLoginUrl,
+  sendPasswordResetEmail,
+  signInWithPassword,
+  signUpWithPassword,
+} from './auth.js'
+import {
   generateAndSaveRecipes,
   getCookingHistoryForUser,
   getInventoryForUser,
@@ -180,6 +186,26 @@ export async function handleApiRequest(request, response) {
     return
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/auth/login') {
+    await handleAuthLogin(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/register') {
+    await handleAuthRegister(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/google') {
+    await handleAuthGoogle(request, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/auth/password-reset') {
+    await handleAuthPasswordReset(request, response)
+    return
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/fridge') {
     await handleGetFridge(request, response)
     return
@@ -282,6 +308,114 @@ async function handleGeminiGenerate(request, response) {
       ok: false,
       message:
         error instanceof Error ? error.message : 'Gemini request failed',
+    })
+  }
+}
+
+async function handleAuthLogin(request, response) {
+  try {
+    const body = await readJsonBody(request)
+
+    if (!body?.email || !body?.password) {
+      sendJson(response, 400, {
+        ok: false,
+        message: 'email and password are required',
+      })
+      return
+    }
+
+    const result = await signInWithPassword({
+      email: body.email,
+      password: body.password,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 401, {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Login failed',
+    })
+  }
+}
+
+async function handleAuthRegister(request, response) {
+  try {
+    const body = await readJsonBody(request)
+
+    if (!body?.email || !body?.password) {
+      sendJson(response, 400, {
+        ok: false,
+        message: 'email and password are required',
+      })
+      return
+    }
+
+    const result = await signUpWithPassword({
+      email: body.email,
+      password: body.password,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 400, {
+      ok: false,
+      message: error instanceof Error ? error.message : 'Registration failed',
+    })
+  }
+}
+
+async function handleAuthGoogle(request, response) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await createGoogleLoginUrl({
+      redirectTo: body?.redirectTo,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 400, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Google login failed',
+    })
+  }
+}
+
+async function handleAuthPasswordReset(request, response) {
+  try {
+    const body = await readJsonBody(request)
+
+    if (!body?.email) {
+      sendJson(response, 400, {
+        ok: false,
+        message: 'email is required',
+      })
+      return
+    }
+
+    const result = await sendPasswordResetEmail({
+      email: body.email,
+      redirectTo: body?.redirectTo,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 400, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Password reset failed',
     })
   }
 }

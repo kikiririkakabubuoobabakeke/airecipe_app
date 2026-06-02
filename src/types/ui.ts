@@ -28,7 +28,13 @@ export type Feature = {
   tone: FeatureTone
 }
 
-export type AppDestination = 'home' | 'fridge' | 'history' | 'receipt' | 'test'
+export type AppDestination =
+  | 'home'
+  | 'fridge'
+  | 'history'
+  | 'receipt'
+  | 'test'
+  | 'login'
 
 export type Ingredient = {
   inventoryId?: number
