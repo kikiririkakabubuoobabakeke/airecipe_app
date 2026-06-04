@@ -2,15 +2,22 @@ import { useEffect, useRef, useState } from 'react'
 import { Topbar } from '../components/Topbar'
 import { parseReceiptText } from '../lib/receiptApi'
 import { recognizeReceiptImage } from '../lib/receiptOcr'
+import { useI18n } from '../lib/useI18n'
 import type { AppDestination, ReceiptIngredientCandidate } from '../types/ui'
 
 type ReceiptScanPageProps = {
   onNavigate?: (page: AppDestination) => void
+  onLogout?: () => void
   onProceedToDetail?: (items: ReceiptIngredientCandidate[]) => void
 }
 
 function createCandidateId() {
-  return `candidate-${crypto.randomUUID()}`
+  const randomId =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+  return `candidate-${randomId}`
 }
 
 function normalizeCandidates(items: ReceiptIngredientCandidate[]) {
@@ -119,7 +126,8 @@ function localFallbackParseReceiptText(text: string) {
     .filter((item) => item.name)
 }
 
-export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPageProps) {
+export function ReceiptScanPage({ onNavigate, onLogout, onProceedToDetail }: ReceiptScanPageProps) {
+  const { t } = useI18n()
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const cameraStreamRef = useRef<MediaStream | null>(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -147,14 +155,22 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
     }
   }, [])
 
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl)
+      }
+    }
+  }, [previewUrl])
+
   async function parseOcrText(text: string, successMessage: string) {
     if (!text.trim()) {
-      setErrorMessage('OCR結果が空です')
+      setErrorMessage(t('receipt.ocrEmpty'))
       return
     }
 
     setIsParsing(true)
-    setStatusMessage('AIで登録候補を整形しています...')
+    setStatusMessage(t('receipt.parseStatus'))
     setErrorMessage('')
 
     try {
@@ -167,12 +183,10 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
 
       if (fallbackItems.length) {
         setCandidates(normalizeCandidates(fallbackItems))
-        setStatusMessage(
-          'AI整形に失敗したため、OCR結果から登録候補を作成しました。必要に応じて修正してください。',
-        )
+        setStatusMessage(t('receipt.parseFallback'))
         setErrorMessage('')
       } else {
-        setErrorMessage('登録候補の作成に失敗しました')
+        setErrorMessage(t('receipt.parseFailed'))
         setStatusMessage('')
       }
     } finally {
@@ -191,7 +205,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
     setStatusMessage('')
     setErrorMessage('')
     setProgress(0)
-    setProgressLabel('OCR準備中')
+    setProgressLabel(t('receipt.ocrPreparing'))
     setIsReading(true)
 
     try {
@@ -203,11 +217,11 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
       setIsReading(false)
       await parseOcrText(
         text,
-        '登録候補を自動作成しました。必要に応じて修正してください。',
+        t('receipt.parseSuccess'),
       )
     } catch (error) {
       console.error('[vite] Receipt OCR failed:', error)
-      setErrorMessage('レシート画像の読み取りに失敗しました')
+      setErrorMessage(t('receipt.readFailed'))
     } finally {
       setIsReading(false)
     }
@@ -215,7 +229,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
 
   async function startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) {
-      setErrorMessage('このブラウザではカメラを利用できません')
+      setErrorMessage(t('receipt.cameraUnavailable'))
       return
     }
 
@@ -232,7 +246,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
       setIsCameraOpen(true)
     } catch (error) {
       console.error('[vite] Camera start failed:', error)
-      setErrorMessage('カメラを起動できませんでした')
+      setErrorMessage(t('receipt.cameraStartFailed'))
     }
   }
 
@@ -249,7 +263,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
     const video = videoRef.current
 
     if (!video || !video.videoWidth || !video.videoHeight) {
-      setErrorMessage('カメラ画像の準備ができていません')
+      setErrorMessage(t('receipt.cameraNotReady'))
       return
     }
 
@@ -259,7 +273,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
     const context = canvas.getContext('2d')
 
     if (!context) {
-      setErrorMessage('撮影画像を作成できませんでした')
+      setErrorMessage(t('receipt.captureFailed'))
       return
     }
 
@@ -270,7 +284,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
     })
 
     if (!blob) {
-      setErrorMessage('撮影画像を作成できませんでした')
+      setErrorMessage(t('receipt.captureFailed'))
       return
     }
 
@@ -283,7 +297,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
   async function handleParseText() {
     await parseOcrText(
       ocrText,
-      '登録候補を再作成しました。必要に応じて修正してください。',
+      t('receipt.reparseSuccess'),
     )
   }
 
@@ -306,9 +320,9 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
         quantity: 1,
         gram: null,
         expirationDate: null,
-        memo: '手動追加',
+        memo: t('receipt.addItem'),
         selected: true,
-        sourceLine: '手動追加',
+        sourceLine: t('receipt.addItem'),
       },
     ])
     setStatusMessage('手動入力用の項目を追加しました')
@@ -319,28 +333,29 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
     const selectedItems = candidates.filter((item) => item.selected)
 
     if (!selectedItems.length) {
-      setErrorMessage('登録する食材を選択してください')
+      setErrorMessage(t('receipt.selectRequired'))
       return
     }
 
     onProceedToDetail?.(selectedItems)
   }
+
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="receipt-page">
         <div className="fridge-header">
           <div>
-            <p className="eyebrow">レシート撮影</p>
-            <h1>購入食材を読み取る</h1>
+            <p className="eyebrow">{t('receipt.eyebrow')}</p>
+            <h1>{t('receipt.title')}</h1>
           </div>
           <button
             type="button"
             className="secondary-button back-home-button"
             onClick={() => onNavigate?.('home')}
           >
-            ホームに戻る
+            {t('common.backHome')}
           </button>
         </div>
 
@@ -348,8 +363,8 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
           <div className="panel receipt-uploader">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">画像 / カメラ</p>
-                <h2>レシートを読み取る</h2>
+                <p className="eyebrow">{t('receipt.sourceEyebrow')}</p>
+                <h2>{t('receipt.sourceTitle')}</h2>
               </div>
             </div>
 
@@ -362,7 +377,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                     handleFileChange(event.currentTarget.files?.[0] ?? null)
                   }
                 />
-                <span>画像を選ぶ</span>
+                <span>{t('receipt.chooseImage')}</span>
               </label>
               <button
                 type="button"
@@ -370,7 +385,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                 onClick={isCameraOpen ? stopCamera : startCamera}
                 disabled={isReading || isParsing}
               >
-                {isCameraOpen ? 'カメラ停止' : 'カメラを起動'}
+                {isCameraOpen ? t('receipt.stopCamera') : t('receipt.startCamera')}
               </button>
             </div>
 
@@ -388,7 +403,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                   onClick={captureCameraImage}
                   disabled={isReading || isParsing}
                 >
-                  撮影して読み取る
+                  {t('receipt.capture')}
                 </button>
               </div>
             ) : null}
@@ -397,15 +412,15 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
               <img
                 className="receipt-preview"
                 src={previewUrl}
-                alt="選択したレシート"
+                alt={t('receipt.previewAlt')}
               />
             ) : (
-              <div className="receipt-placeholder">画像未選択</div>
+              <div className="receipt-placeholder">{t('receipt.noImage')}</div>
             )}
 
             {isReading ? (
               <div className="receipt-progress" aria-live="polite">
-                <span>{progressLabel || 'OCR処理中'}</span>
+                <span>{progressLabel || t('receipt.ocrProcessing')}</span>
                 <strong>{progress}%</strong>
               </div>
             ) : null}
@@ -414,8 +429,8 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
           <div className="panel receipt-text-panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">OCR結果</p>
-                <h2>読み取りテキスト</h2>
+                <p className="eyebrow">{t('receipt.textEyebrow')}</p>
+                <h2>{t('receipt.textTitle')}</h2>
               </div>
               <button
                 type="button"
@@ -423,14 +438,14 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                 onClick={handleParseText}
                 disabled={isReading || isParsing || !ocrText.trim()}
               >
-                {isParsing ? '整形中...' : 'AIで再整形'}
+                {isParsing ? t('receipt.parsing') : t('receipt.reparse')}
               </button>
             </div>
 
             <textarea
               value={ocrText}
               onChange={(event) => setOcrText(event.target.value)}
-              placeholder="OCR結果がここに入ります。手入力で貼り付けても整形できます。"
+              placeholder={t('receipt.textPlaceholder')}
             />
           </div>
         </section>
@@ -451,8 +466,8 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
           <section className="panel receipt-candidates">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">登録候補</p>
-                <h2>確認して在庫に追加</h2>
+                <p className="eyebrow">{t('receipt.candidatesEyebrow')}</p>
+                <h2>{t('receipt.candidatesTitle')}</h2>
               </div>
               <div className="receipt-candidate-actions">
                 <button
@@ -461,7 +476,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                   onClick={addManualCandidate}
                   disabled={isReading || isParsing}
                 >
-                  項目追加
+                  {t('receipt.addItem')}
                 </button>
                 <button
                   type="button"
@@ -469,7 +484,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                   onClick={handleProceed}
                   disabled={isReading || isParsing}
                 >
-                  詳細登録に進む
+                  {t('receipt.proceedToDetail')}
                 </button>
               </div>
             </div>
@@ -487,10 +502,10 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                         })
                       }
                     />
-                    <span>登録</span>
+                    <span>{t('receipt.register')}</span>
                   </label>
                   <label>
-                    <span>食材名</span>
+                    <span>{t('receipt.candidate.name')}</span>
                     <input
                       value={item.name}
                       onChange={(event) =>
@@ -499,7 +514,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                     />
                   </label>
                   <label>
-                    <span>カテゴリ</span>
+                    <span>{t('receipt.candidate.category')}</span>
                     <input
                       value={item.category}
                       onChange={(event) =>
@@ -510,7 +525,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                     />
                   </label>
                   <label>
-                    <span>個数</span>
+                    <span>{t('receipt.candidate.quantity')}</span>
                     <input
                       type="number"
                       min="0"
@@ -525,7 +540,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                     />
                   </label>
                   <label>
-                    <span>g/ml</span>
+                    <span>{t('receipt.candidate.gram')}</span>
                     <input
                       type="number"
                       min="0"
@@ -540,7 +555,7 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
                     />
                   </label>
                   <label>
-                    <span>期限</span>
+                    <span>{t('receipt.candidate.expiration')}</span>
                     <input
                       type="date"
                       value={item.expirationDate ?? ''}
@@ -559,19 +574,19 @@ export function ReceiptScanPage({ onNavigate, onProceedToDetail }: ReceiptScanPa
           <section className="panel receipt-candidates">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">登録候補</p>
-                <h2>手動で追加</h2>
+                <p className="eyebrow">{t('receipt.candidatesEyebrow')}</p>
+                <h2>{t('receipt.manualTitle')}</h2>
               </div>
               <button
                 type="button"
                 className="secondary-button"
                 onClick={addManualCandidate}
               >
-                項目追加
+                {t('receipt.addItem')}
               </button>
             </div>
             <p className="empty-text">
-              レシピ登録で認識しない食材は手動で追加できます。
+              {t('receipt.manualEmpty')}
             </p>
           </section>
         )}

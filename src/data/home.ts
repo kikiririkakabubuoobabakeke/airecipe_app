@@ -1,63 +1,75 @@
 import type { Feature, Ingredient, Recipe } from '../types/ui'
+import {
+  defaultLanguage,
+  translate,
+  type TranslateFn,
+} from '../lib/i18n'
 
-export const primaryFeatures: Feature[] = [
-  {
-    title: 'レシピ生成',
-    description:
-      '在庫、好み、調理時間からAIが献立候補を作成',
-    action: '作りたい料理を探す',
-    icon: 'spark',
-    tone: 'green',
-  },
-  {
-    title: '食材登録',
-    description:
-      '手入力、レシート撮影、画像認識で冷蔵庫に追加',
-    action: '食材を追加する',
-    icon: 'basket',
-    tone: 'yellow',
-  },
-  {
-    title: '買い物リスト',
-    description:
-      '足りない食材を自動でリスト化して予算で絞り込み',
-    action: 'リストを見る',
-    icon: 'list',
-    tone: 'blue',
-  },
-  {
-    title: '調理履歴',
-    description:
-      '作ったレシピ、お気に入り、使用量をまとめて確認',
-    action: '履歴を開く',
-    icon: 'clock',
-    tone: 'red',
-  },
-]
+const defaultT: TranslateFn = (key, values) =>
+  translate(defaultLanguage, key, values)
 
-export const secondaryFeatures: Feature[] = [
-  {
-    title: 'お気に入り',
-    description: 'また作りたいレシピを保存',
-    action: '保存済み',
-    icon: 'heart',
-    tone: 'red',
-  },
-  {
-    title: 'アカウント設定',
-    description: '言語、ログアウト、ユーザー管理',
-    action: '設定',
-    icon: 'settings',
-    tone: 'slate',
-  },
-  {
-    title: 'お問い合わせ',
-    description: '気になる点やエラーを送信',
-    action: '送信',
-    icon: 'message',
-    tone: 'violet',
-  },
-]
+export function getPrimaryFeatures(t: TranslateFn): Feature[] {
+  return [
+    {
+      title: t('home.feature.generateTitle'),
+      description: t('home.feature.generateDescription'),
+      action: t('home.feature.generateAction'),
+      icon: 'spark',
+      tone: 'green',
+    },
+    {
+      title: t('home.feature.ingredientsTitle'),
+      description: t('home.feature.ingredientsDescription'),
+      action: t('home.feature.ingredientsAction'),
+      icon: 'basket',
+      tone: 'yellow',
+    },
+    {
+      title: t('home.feature.shoppingTitle'),
+      description: t('home.feature.shoppingDescription'),
+      action: t('home.feature.shoppingAction'),
+      icon: 'list',
+      tone: 'blue',
+    },
+    {
+      title: t('home.feature.historyTitle'),
+      description: t('home.feature.historyDescription'),
+      action: t('home.feature.historyAction'),
+      icon: 'clock',
+      tone: 'red',
+    },
+  ]
+}
+
+export function getSecondaryFeatures(t: TranslateFn): Feature[] {
+  return [
+    {
+      title: t('home.secondary.favoriteTitle'),
+      description: t('home.secondary.favoriteDescription'),
+      action: t('home.secondary.favoriteAction'),
+      icon: 'heart',
+      tone: 'red',
+    },
+    {
+      title: t('home.secondary.settingsTitle'),
+      description: t('home.secondary.settingsDescription'),
+      action: t('home.secondary.settingsAction'),
+      icon: 'settings',
+      tone: 'slate',
+    },
+    {
+      title: t('home.secondary.contactTitle'),
+      description: t('home.secondary.contactDescription'),
+      action: t('home.secondary.contactAction'),
+      icon: 'message',
+      tone: 'violet',
+    },
+  ]
+}
+
+export const primaryFeatures = getPrimaryFeatures(defaultT)
+
+export const secondaryFeatures = getSecondaryFeatures(defaultT)
 
 export const expiringIngredients: Ingredient[] = [
   { name: '鮭切り身', amount: '320g', status: '今日まで' },
@@ -73,7 +85,7 @@ export const suggestedRecipes: Recipe[] = [
     cookTime: 25,
     servings: 1,
     difficulty: 'かんたん',
-    reason: '期限が近い鮭と小松菜、牛乳をまとめて使えるため',
+    reason: '期限が近い鮭と小松菜、牛乳をまとめて使える',
     ingredients: [
       { ingredientId: 1, name: '鮭切り身', amount: 120, unit: 'g' },
       { ingredientId: 2, name: '小松菜', amount: 0.5, unit: '束' },

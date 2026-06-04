@@ -95,8 +95,10 @@ cd airecipe_app
 ```env
 SUPABASE_URL=https://url.supabase.co
 SUPABASE_PUBLISHABLE_KEY=pass
+SUPABASE_SERVICE_ROLE_KEY=service_Drole_key
 GROQ_API_KEY=apiキー
-GROQ_MODEL=llama-4-scout-17b-16e-instruct
+GROQ_MODEL=openai/gpt-oss-120b
+GEMINI_API_KEY=apiキー
 
 ```
 
@@ -106,6 +108,10 @@ GROQ_MODEL=llama-4-scout-17b-16e-instruct
 
 Groq API については、各自で Groq にアクセスし、自分の Google アカウントで登録して API キーを取得してください。
 取得した API キーは `.env` の `GROQ_API_KEY` に保存してください。この値はサーバー側だけで読み込まれ、ブラウザ側には公開しません。
+
+Supabase の在庫・レシピ操作では `SUPABASE_SERVICE_ROLE_KEY` も必要です。Supabase ダッシュボードの Project Settings から取得し、絶対にブラウザへ直接渡さないでください。
+
+Gemini の画像テスト画面を使う場合は `GEMINI_API_KEY` も設定してください。使わない場合は空でもアプリ本体の食材・レシピ機能は動かせます。
 
 ## 6. 必要なパッケージをインストールする
 
@@ -122,7 +128,7 @@ npm run dev
 起動後、PowerShell に表示されたURLをブラウザで開きます。通常は次のようなURLです。
 
 ```text
-http://localhost:5173/
+http://localhost:3000/
 ```
 
 ## 8. 開発を始める前に最新版を取得する
@@ -163,7 +169,7 @@ winget install --id OpenJS.NodeJS.LTS
 
 - ファイル名が `.env` になっている
 - プロジェクトフォルダの直下に置いている
-- `SUPABASE_URL` と `SUPABASE_PUBLISHABLE_KEY` の値に余分な空白がない
+- `SUPABASE_URL`、`SUPABASE_PUBLISHABLE_KEY`、`SUPABASE_SERVICE_ROLE_KEY` の値に余分な空白がない
 - `.env` を作成した後に `npm run dev` を起動し直している
 
 ## 初回作成者向けメモ

@@ -7,6 +7,7 @@ type ReceiptDetailRegisterPageProps = {
   items: ReceiptIngredientCandidate[]
   onBack: () => void
   onNavigate: (page: AppDestination) => void
+  onLogout?: () => void
 }
 
 type EditableCandidate = ReceiptIngredientCandidate & {
@@ -19,6 +20,7 @@ export function ReceiptDetailRegisterPage({
   items,
   onBack,
   onNavigate,
+  onLogout,
 }: ReceiptDetailRegisterPageProps) {
   const [formData, setFormData] = useState<EditableCandidate[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -132,7 +134,7 @@ export function ReceiptDetailRegisterPage({
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="receipt-detail-page">
         {/* Back Link */}

@@ -1,4 +1,5 @@
 import type { Ingredient, Recipe } from '../types/ui'
+import type { LanguageCode } from './i18n'
 
 type ApiResponse<T> =
   | ({ ok: true } & T)
@@ -36,22 +37,98 @@ async function readJson<T>(response: Response): Promise<T> {
   return payload as T
 }
 
-export async function fetchInventory() {
-  const response = await fetch('/api/inventory')
+function withLanguage(path: string, language?: LanguageCode) {
+  if (!language) {
+    return path
+  }
+
+  const params = new URLSearchParams({ language })
+  return `${path}?${params.toString()}`
+}
+
+export async function fetchInventory(language?: LanguageCode) {
+  const response = await fetch(withLanguage('/api/inventory', language), {
+    credentials: 'same-origin',
+  })
   return readJson<{
     userId: string
     inventory: Ingredient[]
   }>(response)
 }
 
-export async function generateRecipes(servings = 2) {
+export type InventoryMutationInput = {
+  inventoryId?: number
+  name: string
+  category?: string | null
+  quantity?: number | null
+  gram?: number | null
+  expirationDate?: string | null
+  memo?: string | null
+}
+
+export async function createInventoryItem(item: InventoryMutationInput) {
+  const response = await fetch('/api/inventory', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(item),
+  })
+
+  return readJson<{
+    userId: string
+    inventory: Ingredient[]
+  }>(response)
+}
+
+export async function updateInventoryItem(item: InventoryMutationInput) {
+  const response = await fetch('/api/inventory', {
+    method: 'PATCH',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(item),
+  })
+
+  return readJson<{
+    userId: string
+    inventory: Ingredient[]
+  }>(response)
+}
+
+export async function deleteInventoryItem(inventoryId: number) {
+  const response = await fetch('/api/inventory', {
+    method: 'DELETE',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ inventoryId }),
+  })
+
+  return readJson<{
+    userId: string
+    inventory: Ingredient[]
+  }>(response)
+}
+
+export async function generateRecipes(
+  servings = 2,
+  language?: LanguageCode,
+  avoidedIngredients?: string,
+) {
   const response = await fetch('/api/recipes/generate', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       servings,
+      language,
+      avoidedIngredients,
     }),
   })
 
@@ -61,15 +138,21 @@ export async function generateRecipes(servings = 2) {
   }>(response)
 }
 
-export async function markRecipeCooked(recipeId: string, servings: number) {
+export async function markRecipeCooked(
+  recipeId: string,
+  servings: number,
+  language?: LanguageCode,
+) {
   const response = await fetch('/api/recipes/cooked', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
       recipeId,
       servings,
+      language,
     }),
   })
 
@@ -81,16 +164,22 @@ export async function markRecipeCooked(recipeId: string, servings: number) {
   }>(response)
 }
 
-export async function fetchCookingHistory() {
-  const response = await fetch('/api/cooking-history', { cache: 'no-store' })
+export async function fetchCookingHistory(language?: LanguageCode) {
+  const response = await fetch(withLanguage('/api/cooking-history', language), {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  })
   return readJson<{
     userId: string
     recipes: Recipe[]
   }>(response)
 }
 
-export async function fetchSavedRecipes() {
-  const response = await fetch('/api/recipes/saved', { cache: 'no-store' })
+export async function fetchSavedRecipes(language?: LanguageCode) {
+  const response = await fetch(withLanguage('/api/recipes/saved', language), {
+    cache: 'no-store',
+    credentials: 'same-origin',
+  })
   return readJson<{
     userId: string
     recipes: Recipe[]
@@ -103,6 +192,7 @@ export async function setRecipeFavorite(
 ) {
   const response = await fetch('/api/recipes/favorite', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },

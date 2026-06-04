@@ -6,13 +6,18 @@ import { SummaryGrid } from '../components/SummaryGrid'
 import { Topbar } from '../components/Topbar'
 import {
   expiringIngredients,
-  primaryFeatures,
-  secondaryFeatures,
+  getPrimaryFeatures,
+  getSecondaryFeatures,
   suggestedRecipes,
   summaryItems,
 } from '../data/home'
+import { useI18n } from '../lib/useI18n'
 
 export function FoodPage() {
+  const { t } = useI18n()
+  const primaryFeatures = getPrimaryFeatures(t)
+  const secondaryFeatures = getSecondaryFeatures(t)
+
   return (
     <div className="app-shell">
       <Topbar />
@@ -22,7 +27,7 @@ export function FoodPage() {
 
         <SummaryGrid items={summaryItems} />
 
-        <section className="feature-section" aria-label="クイックアクセス">
+        <section className="feature-section" aria-label={t('home.quickAccessLabel')}>
           <div className="feature-grid">
             {primaryFeatures.map((feature) => (
               <FeatureCard key={feature.title} feature={feature} />
@@ -38,7 +43,7 @@ export function FoodPage() {
         <section
           className="secondary-section"
           id="shopping"
-          aria-label="アカウントとサポート"
+          aria-label={t('home.secondaryLabel')}
         >
           <div className="secondary-grid">
             {secondaryFeatures.map((feature) => (

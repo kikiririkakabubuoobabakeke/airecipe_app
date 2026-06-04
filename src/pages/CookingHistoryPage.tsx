@@ -1,26 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Topbar } from '../components/Topbar'
 import { fetchSavedRecipes } from '../lib/recipeApi'
+import { useI18n } from '../lib/useI18n'
+import type { TranslateFn } from '../lib/i18n'
 import type { AppDestination, Recipe } from '../types/ui'
 
 type CookingHistoryPageProps = {
   onNavigate?: (page: AppDestination) => void
   onSelectRecipe: (recipe: Recipe) => void
+  onLogout?: () => void | Promise<void>
 }
 
 type RecipeFilter = 'all' | 'uncooked' | 'cooked' | 'favorite'
 
 const recipeFilters: Array<{
-  label: string
+  labelKey: Parameters<TranslateFn>[0]
   value: RecipeFilter
 }> = [
-  { label: '全て', value: 'all' },
-  { label: '未調理', value: 'uncooked' },
-  { label: '調理済み', value: 'cooked' },
-  { label: 'お気に入り', value: 'favorite' },
+  { labelKey: 'history.filter.all', value: 'all' },
+  { labelKey: 'history.filter.uncooked', value: 'uncooked' },
+  { labelKey: 'history.filter.cooked', value: 'cooked' },
+  { labelKey: 'history.filter.favorite', value: 'favorite' },
 ]
 
-function formatDateTime(value?: string) {
+function formatDateTime(value: string | undefined, language: string) {
   if (!value) {
     return ''
   }
@@ -31,24 +34,36 @@ function formatDateTime(value?: string) {
     return value
   }
 
-  return `${date.getMonth() + 1}月${date.getDate()}日 ${date
-    .getHours()
-    .toString()
-    .padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`
+  return new Intl.DateTimeFormat(language, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
-function formatRecipeStatus(recipe: Recipe) {
+function formatRecipeStatus(
+  recipe: Recipe,
+  language: string,
+  t: TranslateFn,
+) {
   if (recipe.cookedAt) {
-    return `最終調理 ${formatDateTime(recipe.cookedAt)}`
+    return t('history.status.lastCooked', {
+      date: formatDateTime(recipe.cookedAt, language),
+    })
   }
 
-  return `作成 ${formatDateTime(recipe.createdAt) || '日時未設定'}`
+  return t('history.status.created', {
+    date: formatDateTime(recipe.createdAt, language) || t('history.status.noDate'),
+  })
 }
 
 export function CookingHistoryPage({
   onNavigate,
   onSelectRecipe,
+  onLogout,
 }: CookingHistoryPageProps) {
+  const { language, t } = useI18n()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
@@ -86,7 +101,7 @@ export function CookingHistoryPage({
   useEffect(() => {
     let isMounted = true
 
-    fetchSavedRecipes()
+    fetchSavedRecipes(language)
       .then((result) => {
         if (isMounted) {
           setRecipes(result.recipes)
@@ -100,7 +115,7 @@ export function CookingHistoryPage({
           setError(
             fetchError instanceof Error
               ? fetchError.message
-              : '作成したレシピの取得に失敗しました',
+              : t('history.fetchFailed'),
           )
         }
       })
@@ -113,34 +128,34 @@ export function CookingHistoryPage({
     return () => {
       isMounted = false
     }
-  }, [retryCount])
+  }, [language, retryCount, t])
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="history-page">
         <div className="fridge-header">
           <div>
-            <p className="eyebrow">保存済みレシピ</p>
-            <h1>作成したレシピ</h1>
+            <p className="eyebrow">{t('history.eyebrow')}</p>
+            <h1>{t('history.title')}</h1>
           </div>
           <button
             type="button"
             className="secondary-button back-home-button"
             onClick={() => onNavigate?.('home')}
           >
-            ホームに戻る
+            {t('common.backHome')}
           </button>
         </div>
 
         {isLoading ? (
-          <p className="status-message">作成したレシピを読み込み中...</p>
+          <p className="status-message">{t('history.loading')}</p>
         ) : null}
 
         {error ? (
           <div className="status-message history-error" role="alert">
-            <span>作成したレシピの取得に失敗しました: {error}</span>
+            <span>{t('history.fetchFailed')}: {error}</span>
             <button
               type="button"
               className="small-button"
@@ -150,13 +165,13 @@ export function CookingHistoryPage({
                 setRetryCount((count) => count + 1)
               }}
             >
-              再読み込み
+              {t('common.reload')}
             </button>
           </div>
         ) : null}
 
         {!isLoading && !error && recipes.length === 0 ? (
-          <p className="empty-state">まだ作成したレシピがありません。</p>
+          <p className="empty-state">{t('history.empty')}</p>
         ) : null}
 
         {!isLoading && !error && recipes.length > 0 ? (
@@ -170,7 +185,7 @@ export function CookingHistoryPage({
                 }`}
                 onClick={() => setActiveFilter(filter.value)}
               >
-                {filter.label}
+                {t(filter.labelKey)}
                 <span>{filterCounts[filter.value]}</span>
               </button>
             ))}
@@ -178,7 +193,7 @@ export function CookingHistoryPage({
         ) : null}
 
         {!isLoading && !error && recipes.length > 0 && filteredRecipes.length === 0 ? (
-          <p className="empty-state">この条件のレシピはありません。</p>
+          <p className="empty-state">{t('history.emptyFilter')}</p>
         ) : null}
 
         <div className="history-list">
@@ -191,7 +206,7 @@ export function CookingHistoryPage({
             >
               <div>
                 <span className="status-pill">
-                  {formatRecipeStatus(recipe)}
+                  {formatRecipeStatus(recipe, language, t)}
                 </span>
                 <h2>{recipe.name}</h2>
                 <p>{recipe.meta}</p>

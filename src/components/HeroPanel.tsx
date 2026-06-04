@@ -1,8 +1,10 @@
 import { Icon } from './Icon'
+import { useI18n } from '../lib/useI18n'
 
 type HeroPanelProps = {
   isGenerating: boolean
   onGenerateRecipe: () => void
+  onAddIngredient?: () => void
   onScanReceipt?: () => void
   onShowRecipes?: () => void
 }
@@ -10,20 +12,23 @@ type HeroPanelProps = {
 export function HeroPanel({
   isGenerating,
   onGenerateRecipe,
+  onAddIngredient,
   onScanReceipt,
   onShowRecipes,
 }: HeroPanelProps) {
+  const { t } = useI18n()
+
   return (
     <section className="hero-panel" aria-labelledby="home-title">
       <div className="hero-panel__content">
-        <p className="eyebrow">今日の献立</p>
+        <p className="eyebrow">{t('home.hero.eyebrow')}</p>
         <h1 id="home-title">
-          作れるレシピを
+          {t('home.hero.titleLine1')}
           <br />
-          食材からすぐ提案
+          {t('home.hero.titleLine2')}
         </h1>
         <p className="hero-panel__lead">
-          食材登録、期限管理、レシピ生成、買い物リストまでをひとつの画面から始められます。
+          {t('home.hero.lead')}
         </p>
         <div className="hero-actions">
           <button
@@ -33,11 +38,17 @@ export function HeroPanel({
             disabled={isGenerating}
           >
             <Icon name="spark" />
-            <span>{isGenerating ? '生成中...' : 'レシピを生成'}</span>
+            <span>
+              {isGenerating ? t('home.hero.generating') : t('home.hero.generate')}
+            </span>
           </button>
-          <button type="button" className="secondary-button">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onAddIngredient}
+          >
             <Icon name="plus" />
-            <span>食材を登録</span>
+            <span>{t('home.hero.addIngredient')}</span>
           </button>
           <button
             type="button"
@@ -45,7 +56,7 @@ export function HeroPanel({
             onClick={onScanReceipt}
           >
             <Icon name="camera" />
-            <span>レシート撮影</span>
+            <span>{t('home.hero.scanReceipt')}</span>
           </button>
           <button
             type="button"
@@ -53,12 +64,12 @@ export function HeroPanel({
             onClick={onShowRecipes}
           >
             <Icon name="list" />
-            <span>レシピ表示</span>
+            <span>{t('home.hero.showRecipes')}</span>
           </button>
         </div>
       </div>
 
-      <div className="meal-preview" aria-label="おすすめ献立のプレビュー">
+      <div className="meal-preview" aria-label={t('home.hero.previewAria')}>
         <div className="meal-preview__image">
           <div className="plate">
             <span className="plate__rice" />
@@ -68,9 +79,9 @@ export function HeroPanel({
           </div>
         </div>
         <div className="meal-preview__body">
-          <span className="status-pill">AI提案</span>
-          <h2>鮭と小松菜の和風クリーム煮</h2>
-          <p>期限が近い食材を優先した、25分で作れる献立です。</p>
+          <span className="status-pill">{t('home.hero.aiSuggestion')}</span>
+          <h2>{t('home.hero.previewTitle')}</h2>
+          <p>{t('home.hero.previewDescription')}</p>
         </div>
       </div>
     </section>

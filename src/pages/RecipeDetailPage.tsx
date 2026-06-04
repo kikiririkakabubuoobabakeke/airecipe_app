@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Topbar } from '../components/Topbar'
 import { Icon } from '../components/Icon'
 import { markRecipeCooked, setRecipeFavorite } from '../lib/recipeApi'
+import { useI18n } from '../lib/useI18n'
 import type { AppDestination, Ingredient, Recipe } from '../types/ui'
 
 type RecipeDetailPageProps = {
@@ -9,6 +10,7 @@ type RecipeDetailPageProps = {
   onBack: () => void
   onNavigate?: (page: AppDestination) => void
   onInventoryUpdated?: (ingredients: Ingredient[]) => void
+  onLogout?: () => void | Promise<void>
 }
 
 export function RecipeDetailPage({
@@ -16,15 +18,19 @@ export function RecipeDetailPage({
   onBack,
   onNavigate,
   onInventoryUpdated,
+  onLogout,
 }: RecipeDetailPageProps) {
+  const { language, t } = useI18n()
   const [servings, setServings] = useState(1)
   const [isCooking, setIsCooking] = useState(false)
   const [isFavorite, setIsFavorite] = useState(Boolean(recipe.isFavorite))
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false)
   const [message, setMessage] = useState('')
   const displayTags = isFavorite
-    ? Array.from(new Set(['お気に入り', ...recipe.tags]))
-    : recipe.tags.filter((tag) => tag !== 'お気に入り')
+    ? Array.from(new Set([t('recipe.favoriteTag'), ...recipe.tags]))
+    : recipe.tags.filter(
+        (tag) => tag !== 'お気に入り' && tag !== t('recipe.favoriteTag'),
+      )
   const steps =
     recipe.steps?.length
       ? recipe.steps
@@ -37,7 +43,7 @@ export function RecipeDetailPage({
 
   async function handleCooked() {
     if (!recipe.recipeId) {
-      setMessage('保存済みレシピだけ在庫を更新できます')
+      setMessage(t('recipe.savedOnlyInventory'))
       return
     }
 
@@ -45,12 +51,12 @@ export function RecipeDetailPage({
     setMessage('')
 
     try {
-      const result = await markRecipeCooked(recipe.recipeId, servings)
+      const result = await markRecipeCooked(recipe.recipeId, servings, language)
       onInventoryUpdated?.(result.inventory)
-      setMessage(`${servings}人分の在庫を更新しました`)
+      setMessage(t('recipe.inventoryUpdated', { servings }))
     } catch (error) {
       console.error('[vite] Cooking update failed:', error)
-      setMessage('在庫の更新に失敗しました')
+      setMessage(t('recipe.inventoryUpdateFailed'))
     } finally {
       setIsCooking(false)
     }
@@ -58,7 +64,7 @@ export function RecipeDetailPage({
 
   async function handleFavoriteToggle() {
     if (!recipe.recipeId) {
-      setMessage('保存済みレシピだけお気に入りにできます')
+      setMessage(t('recipe.savedOnlyFavorite'))
       return
     }
 
@@ -71,12 +77,12 @@ export function RecipeDetailPage({
       setIsFavorite(result.isFavorite)
       setMessage(
         result.isFavorite
-          ? 'お気に入りに追加しました'
-          : 'お気に入りを解除しました',
+          ? t('recipe.favoriteAdded')
+          : t('recipe.favoriteRemoved'),
       )
     } catch (error) {
       console.error('[vite] Favorite update failed:', error)
-      setMessage('お気に入りの更新に失敗しました')
+      setMessage(t('recipe.favoriteUpdateFailed'))
     } finally {
       setIsUpdatingFavorite(false)
     }
@@ -84,12 +90,12 @@ export function RecipeDetailPage({
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="recipe-detail">
         <div className="recipe-detail__toolbar">
           <button type="button" className="secondary-button" onClick={onBack}>
-            戻る
+            {t('common.back')}
           </button>
           <button
             type="button"
@@ -100,16 +106,16 @@ export function RecipeDetailPage({
             <Icon name="heart" />
             <span>
               {isUpdatingFavorite
-                ? '更新中...'
+                ? t('common.updating')
                 : isFavorite
-                  ? 'お気に入り済み'
-                  : 'お気に入りに追加'}
+                  ? t('recipe.favoriteSaved')
+                  : t('recipe.favoriteAdd')}
             </span>
           </button>
         </div>
 
         <section className="recipe-detail__hero">
-          <p className="eyebrow">レシピ詳細</p>
+          <p className="eyebrow">{t('recipe.detailEyebrow')}</p>
           <h1>{recipe.name}</h1>
           <p>
             {recipe.meta}
@@ -132,8 +138,8 @@ export function RecipeDetailPage({
           <section className="panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">材料</p>
-                <h2>1人前の量</h2>
+                <p className="eyebrow">{t('recipe.ingredientsEyebrow')}</p>
+                <h2>{t('recipe.ingredientsTitle')}</h2>
               </div>
             </div>
 
@@ -150,15 +156,15 @@ export function RecipeDetailPage({
                 ))}
               </ul>
             ) : (
-              <p className="empty-text">材料情報がありません。</p>
+              <p className="empty-text">{t('recipe.ingredientsEmpty')}</p>
             )}
           </section>
 
           <section className="panel">
             <div className="section-heading">
               <div>
-                <p className="eyebrow">手順</p>
-                <h2>調理工程</h2>
+                <p className="eyebrow">{t('recipe.stepsEyebrow')}</p>
+                <h2>{t('recipe.stepsTitle')}</h2>
               </div>
             </div>
 
@@ -169,14 +175,14 @@ export function RecipeDetailPage({
                 ))}
               </ol>
             ) : (
-              <p className="empty-text">調理工程がありません。</p>
+              <p className="empty-text">{t('recipe.stepsEmpty')}</p>
             )}
           </section>
         </div>
 
         <section className="cook-complete-panel">
           <label className="serving-field">
-            <span>何人分作りましたか</span>
+            <span>{t('recipe.servingsQuestion')}</span>
             <input
               type="number"
               min="1"
@@ -193,7 +199,7 @@ export function RecipeDetailPage({
             onClick={handleCooked}
             disabled={isCooking}
           >
-            {isCooking ? '更新中...' : '調理済みにして在庫を減らす'}
+            {isCooking ? t('common.updating') : t('recipe.markCooked')}
           </button>
         </section>
       </main>

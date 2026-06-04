@@ -5,97 +5,217 @@ import { IngredientsPanel } from '../components/IngredientsPanel'
 import { RecipesPanel } from '../components/RecipesPanel'
 import { SummaryGrid } from '../components/SummaryGrid'
 import { Topbar } from '../components/Topbar'
-import {
-  expiringIngredients,
-  primaryFeatures,
-  secondaryFeatures,
-  suggestedRecipes,
-  summaryItems,
-} from '../data/home'
+import { getSecondaryFeatures } from '../data/home'
+import type { TranslateFn } from '../lib/i18n'
+import { useI18n } from '../lib/useI18n'
 import {
   fetchInventory,
+  fetchSavedRecipes,
   generateRecipes,
   markRecipeCooked,
 } from '../lib/recipeApi'
-import type { AppDestination, Ingredient, Recipe } from '../types/ui'
-
-function buildSummaryItems(ingredients: Ingredient[], recipes: Recipe[]) {
-  const expiringCount = ingredients.filter((ingredient) =>
-    ['今日まで', '明日まで', '期限切れ'].includes(ingredient.status),
-  ).length
-
-  return [
-    {
-      label: '登録食材',
-      value: String(ingredients.length),
-      note:
-        expiringCount > 0
-          ? `${expiringCount}件は期限が近い`
-          : '期限が近い食材なし',
-    },
-    summaryItems[1],
-    {
-      label: 'レシピ候補',
-      value: String(recipes.length),
-      note: recipes.some((recipe) => recipe.recipeId)
-        ? 'AI生成済み'
-        : 'モック表示中',
-    },
-    summaryItems[3],
-  ]
-}
+import {
+  defaultPreferences,
+  fetchPreferences,
+} from '../lib/preferencesApi'
+import type {
+  AppDestination,
+  Ingredient,
+  Recipe,
+  UserPreferences,
+} from '../types/ui'
 
 type HomePageProps = {
   onNavigate?: (page: AppDestination) => void
   onSelectRecipe?: (recipe: Recipe) => void
+  onLogout?: () => void | Promise<void>
 }
 
-export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
-  const [ingredients, setIngredients] =
-    useState<Ingredient[]>(expiringIngredients)
-  const [recipes, setRecipes] = useState<Recipe[]>(suggestedRecipes)
+function isNearExpiration(ingredient: Ingredient, leadDays = 3) {
+  if (!ingredient.expirationDate) {
+    return false
+  }
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const expiration = new Date(`${ingredient.expirationDate}T00:00:00`)
+
+  if (Number.isNaN(expiration.getTime())) {
+    return false
+  }
+
+  const diffDays = Math.ceil(
+    (expiration.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  )
+
+  return diffDays >= 0 && diffDays <= leadDays
+}
+
+function isLowStock(ingredient: Ingredient) {
+  const quantity = Number(ingredient.quantity ?? 0)
+  const gram = Number(ingredient.gram ?? 0)
+
+  return quantity <= 0 && gram <= 0
+}
+
+function buildSummaryItems(
+  ingredients: Ingredient[],
+  recipes: Recipe[],
+  preferences: UserPreferences,
+  t: TranslateFn,
+) {
+  const leadDays = preferences.notifications.expiration
+    ? preferences.notifications.expirationLeadDays
+    : 0
+  const nearExpirationCount =
+    leadDays > 0
+      ? ingredients.filter((ingredient) =>
+          isNearExpiration(ingredient, leadDays),
+        ).length
+      : 0
+  const lowStockCount = preferences.notifications.lowStock
+    ? ingredients.filter(isLowStock).length
+    : 0
+  const favoriteCount = recipes.filter((recipe) => recipe.isFavorite).length
+
+  return [
+    {
+      label: t('home.summary.ingredientsLabel'),
+      value: String(ingredients.length),
+      note: ingredients.length
+        ? t('home.summary.ingredientsNote')
+        : t('home.summary.ingredientsEmptyNote'),
+    },
+    {
+      label: t('home.summary.nearExpirationLabel'),
+      value: String(nearExpirationCount),
+      note:
+        nearExpirationCount > 0
+          ? t('home.summary.nearExpirationNote', { days: leadDays })
+          : t('home.summary.nearExpirationEmptyNote'),
+    },
+    {
+      label: t('home.summary.recipesLabel'),
+      value: String(recipes.length),
+      note: recipes.length
+        ? t('home.summary.recipesNote')
+        : t('home.summary.recipesEmptyNote'),
+    },
+    {
+      label: t('home.summary.lowStockLabel'),
+      value: String(lowStockCount),
+      note:
+        lowStockCount > 0
+          ? t('home.summary.lowStockNote')
+          : t('home.summary.lowStockEmptyNote'),
+    },
+    {
+      label: t('home.summary.favoritesLabel'),
+      value: String(favoriteCount),
+      note: t('home.summary.favoritesNote'),
+    },
+  ]
+}
+
+export function HomePage({
+  onNavigate,
+  onSelectRecipe,
+  onLogout,
+}: HomePageProps) {
+  const { language, t } = useI18n()
+  const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCooking, setIsCooking] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [cookingRecipe, setCookingRecipe] = useState<Recipe | null>(null)
   const [servings, setServings] = useState(1)
+  const [preferences, setPreferences] =
+    useState<UserPreferences>(defaultPreferences)
+  const secondaryFeatures = useMemo(() => getSecondaryFeatures(t), [t])
   const currentSummaryItems = useMemo(
-    () => buildSummaryItems(ingredients, recipes),
-    [ingredients, recipes],
+    () => buildSummaryItems(ingredients, recipes, preferences, t),
+    [ingredients, preferences, recipes, t],
   )
 
   useEffect(() => {
     let isMounted = true
 
-    fetchInventory()
+    fetchInventory(language)
       .then((result) => {
-        if (isMounted && result.inventory.length) {
+        if (isMounted) {
           setIngredients(result.inventory)
         }
       })
       .catch((error) => {
         console.warn('[vite] Inventory fetch failed:', error)
+        if (isMounted) {
+          setStatusMessage(
+            error instanceof Error
+              ? error.message
+              : t('home.status.inventoryFetchFailed'),
+          )
+        }
+      })
+
+    fetchSavedRecipes(language)
+      .then((result) => {
+        if (isMounted) {
+          setRecipes(result.recipes)
+        }
+      })
+      .catch((error) => {
+        console.warn('[vite] Saved recipes fetch failed:', error)
+      })
+
+    fetchPreferences()
+      .then((result) => {
+        if (isMounted) {
+          setPreferences(result.preferences)
+        }
+      })
+      .catch((error) => {
+        console.warn('[vite] Preferences fetch failed:', error)
       })
 
     return () => {
       isMounted = false
     }
-  }, [])
+  }, [language, t])
+
+  function navigateToReceipt() {
+    onNavigate?.('receipt')
+  }
+
+  function navigateToFridge() {
+    onNavigate?.('fridge')
+  }
 
   async function handleGenerateRecipe() {
+    if (!ingredients.length) {
+      setStatusMessage(t('home.status.generateEmpty'))
+      return
+    }
+
     setIsGenerating(true)
     setStatusMessage('')
 
     try {
-      const result = await generateRecipes(2)
+      const result = await generateRecipes(
+        preferences.defaultServings,
+        language,
+        preferences.avoidedIngredients,
+      )
 
       if (result.recipes.length) {
         setRecipes(result.recipes)
-        setStatusMessage('レシピ候補を生成しました')
+        setStatusMessage(t('home.status.generateSuccess'))
       }
     } catch (error) {
       console.error('[vite] Recipe generation failed:', error)
-      setStatusMessage('レシピ生成に失敗しました')
+      setStatusMessage(
+        error instanceof Error ? error.message : t('home.status.generateFailed'),
+      )
     } finally {
       setIsGenerating(false)
     }
@@ -116,13 +236,21 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
     setStatusMessage('')
 
     try {
-      const result = await markRecipeCooked(cookingRecipe.recipeId, servings)
+      const result = await markRecipeCooked(
+        cookingRecipe.recipeId,
+        servings,
+        language,
+      )
       setIngredients(result.inventory)
-      setStatusMessage(`${servings}人分の在庫を更新しました`)
+      setStatusMessage(t('home.status.cookingUpdated', { servings }))
       setCookingRecipe(null)
     } catch (error) {
       console.error('[vite] Cooking update failed:', error)
-      setStatusMessage('在庫の更新に失敗しました')
+      setStatusMessage(
+        error instanceof Error
+          ? error.message
+          : t('home.status.inventoryUpdateFailed'),
+      )
     } finally {
       setIsCooking(false)
     }
@@ -130,13 +258,14 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
 
   return (
     <div className="app-shell">
-      <Topbar onNavigate={onNavigate} />
+      <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="home">
         <HeroPanel
           isGenerating={isGenerating}
           onGenerateRecipe={handleGenerateRecipe}
-          onScanReceipt={() => onNavigate?.('receipt')}
+          onAddIngredient={navigateToFridge}
+          onScanReceipt={navigateToReceipt}
           onShowRecipes={() => onNavigate?.('history')}
         />
 
@@ -148,24 +277,11 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
 
         <SummaryGrid items={currentSummaryItems} />
 
-        <section className="feature-section" aria-label="クイックアクセス">
-          <div className="feature-grid">
-            {primaryFeatures.map((feature) => (
-              <FeatureCard
-                key={feature.title}
-                feature={feature}
-                onAction={
-                  feature.title === '調理履歴'
-                    ? () => onNavigate?.('history')
-                    : undefined
-                }
-              />
-            ))}
-          </div>
-        </section>
-
         <div className="dashboard-grid">
-          <IngredientsPanel ingredients={ingredients} />
+          <IngredientsPanel
+            ingredients={ingredients}
+            onAddIngredient={navigateToReceipt}
+          />
           <RecipesPanel
             recipes={recipes}
             isGenerating={isGenerating}
@@ -178,11 +294,19 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
         <section
           className="secondary-section"
           id="shopping"
-          aria-label="アカウントとサポート"
+          aria-label={t('home.secondaryLabel')}
         >
           <div className="secondary-grid">
             {secondaryFeatures.map((feature) => (
-              <FeatureCard key={feature.title} feature={feature} />
+              <FeatureCard
+                key={feature.title}
+                feature={feature}
+                onAction={
+                  feature.icon === 'settings'
+                    ? () => onNavigate?.('settings')
+                    : undefined
+                }
+              />
             ))}
           </div>
         </section>
@@ -196,10 +320,10 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
             aria-modal="true"
             role="dialog"
           >
-            <p className="eyebrow">調理済み</p>
+            <p className="eyebrow">{t('home.modal.cooked')}</p>
             <h2 id="cook-modal-title">{cookingRecipe.name}</h2>
             <label className="serving-field">
-              <span>何人分作りましたか</span>
+              <span>{t('home.modal.servingsQuestion')}</span>
               <input
                 type="number"
                 min="1"
@@ -217,7 +341,7 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
                 onClick={() => setCookingRecipe(null)}
                 disabled={isCooking}
               >
-                キャンセル
+                {t('home.modal.cancel')}
               </button>
               <button
                 type="button"
@@ -225,7 +349,9 @@ export function HomePage({ onNavigate, onSelectRecipe }: HomePageProps) {
                 onClick={handleConfirmCooked}
                 disabled={isCooking}
               >
-                {isCooking ? '更新中...' : '在庫を減らす'}
+                {isCooking
+                  ? t('home.modal.updating')
+                  : t('home.modal.reduceInventory')}
               </button>
             </div>
           </section>

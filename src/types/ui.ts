@@ -28,7 +28,15 @@ export type Feature = {
   tone: FeatureTone
 }
 
-export type AppDestination = 'home' | 'fridge' | 'history' | 'receipt' | 'test' | 'receipt-detail'
+export type AppDestination =
+  | 'home'
+  | 'fridge'
+  | 'history'
+  | 'receipt'
+  | 'test'
+  | 'settings'
+  | 'login'
+  | 'receipt-detail'
 
 export type Ingredient = {
   inventoryId?: number
@@ -81,4 +89,14 @@ export type ReceiptIngredientCandidate = {
   memo?: string | null
   selected: boolean
   sourceLine?: string | null
+}
+
+export type UserPreferences = {
+  defaultServings: number
+  avoidedIngredients: string
+  notifications: {
+    expiration: boolean
+    lowStock: boolean
+    expirationLeadDays: number
+  }
 }

@@ -1,19 +1,23 @@
 import { Icon } from './Icon'
+import { useI18n } from '../lib/useI18n'
 import type { AppDestination } from '../types/ui'
 
-export function Topbar({
-  onNavigate,
-}: {
+type TopbarProps = {
   onNavigate?: (page: AppDestination) => void
-}) {
+  onLogout?: () => void | Promise<void>
+}
+
+export function Topbar({ onNavigate, onLogout }: TopbarProps) {
+  const { t } = useI18n()
+
   return (
     <header className="topbar">
       <a
         className="brand"
         href="/"
-        aria-label="あいくっく ホーム"
-        onClick={(e) => {
-          e.preventDefault()
+        aria-label={t('app.name')}
+        onClick={(event) => {
+          event.preventDefault()
           onNavigate?.('home')
         }}
       >
@@ -21,61 +25,81 @@ export function Topbar({
           <img src="/app-icon.png" alt="" />
         </span>
         <span>
-          <strong>あいくっく</strong>
-          <small>食材管理と献立づくり</small>
+          <strong>{t('app.name')}</strong>
+          <small>{t('app.tagline')}</small>
         </span>
       </a>
 
-      <nav className="topbar__nav" aria-label="メインメニュー">
+      <nav className="topbar__nav" aria-label={t('topbar.menuLabel')}>
         <a
           href="#ingredients"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('fridge')
           }}
         >
-          食材
+          {t('topbar.ingredients')}
         </a>
         <a
           href="#recipes"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('home')
             setTimeout(() => {
-              document.getElementById('recipes')?.scrollIntoView({ behavior: 'smooth' })
+              document
+                .getElementById('recipes')
+                ?.scrollIntoView({ behavior: 'smooth' })
             }, 100)
           }}
         >
-          レシピ
+          {t('topbar.recipes')}
         </a>
         <a
           href="#receipt"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('receipt')
           }}
         >
-          レシート
+          {t('topbar.receipt')}
         </a>
         <a
           href="#history"
-          onClick={(e) => {
-            e.preventDefault()
+          onClick={(event) => {
+            event.preventDefault()
             onNavigate?.('history')
           }}
         >
-          履歴
+          {t('topbar.history')}
         </a>
       </nav>
 
       <div className="topbar__actions">
-        <button type="button" className="icon-button" aria-label="通知">
+        <button
+          type="button"
+          className="icon-button"
+          aria-label={t('topbar.notifications')}
+        >
           <Icon name="bell" />
         </button>
-        <button type="button" className="account-button">
-          <Icon name="user" />
-          <span>アカウント</span>
+        <button
+          type="button"
+          className="account-button"
+          onClick={() => onNavigate?.('settings')}
+        >
+          <Icon name="settings" />
+          <span>{t('topbar.settings')}</span>
         </button>
+        {onLogout ? (
+          <button
+            type="button"
+            className="account-button"
+            onClick={() => void onLogout()}
+          >
+            <Icon name="user" />
+            <span>{t('common.logout')}</span>
+          </button>
+        ) : null}
       </div>
     </header>
   )

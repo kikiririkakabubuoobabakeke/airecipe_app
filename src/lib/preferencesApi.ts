@@ -1,4 +1,4 @@
-import type { Ingredient, ReceiptIngredientCandidate } from '../types/ui'
+import type { UserPreferences } from '../types/ui'
 
 type ApiResponse<T> =
   | ({ ok: true } & T)
@@ -38,53 +38,40 @@ async function readJson<T>(response: Response): Promise<T> {
   return payload as T
 }
 
-export async function parseReceiptText(ocrText: string) {
-  const response = await fetch('/api/receipts/parse', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ ocrText }),
-  })
-
-  return readJson<{
-    items: ReceiptIngredientCandidate[]
-  }>(response)
+export const defaultPreferences: UserPreferences = {
+  defaultServings: 2,
+  avoidedIngredients: '',
+  notifications: {
+    expiration: true,
+    lowStock: false,
+    expirationLeadDays: 3,
+  },
 }
 
-export async function importReceiptItems(
-  items: ReceiptIngredientCandidate[],
-) {
-  const response = await fetch('/api/receipts/import', {
-    method: 'POST',
+export async function fetchPreferences() {
+  const response = await fetch('/api/preferences', {
+    cache: 'no-store',
     credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ items }),
   })
 
   return readJson<{
     userId: string
-    importedCount: number
-    inventory: Ingredient[]
+    preferences: UserPreferences
   }>(response)
 }
 
-export async function importReceiptItemsDetail(
-  items: ReceiptIngredientCandidate[],
-) {
-  const response = await fetch('/api/receipts/import-detail', {
-    method: 'POST',
+export async function savePreferences(preferences: UserPreferences) {
+  const response = await fetch('/api/preferences', {
+    method: 'PATCH',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ items }),
+    body: JSON.stringify({ preferences }),
   })
 
   return readJson<{
     userId: string
-    importedCount: number
+    preferences: UserPreferences
   }>(response)
 }

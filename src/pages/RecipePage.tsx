@@ -4,6 +4,7 @@
 import { RecipesPanel } from '../components/RecipesPanel'
 //import { SummaryGrid } from '../components/SummaryGrid'
 import { Topbar } from '../components/Topbar'
+import { useI18n } from '../lib/useI18n'
 import {
   //expiringIngredients,
   //primaryFeatures,
@@ -12,12 +13,14 @@ import {
   //summaryItems,
 } from '../data/home'
 export function RecipePage() {
+  const { t } = useI18n()
+
   return (
     <div className="app-shell">
       <Topbar />
       <main className="home">
         <button type="button" className="secondary-button">
-          <span>冷蔵庫</span>
+          <span>{t('topbar.ingredients')}</span>
         </button>
           <RecipesPanel recipes={suggestedRecipes} />
       </main>
