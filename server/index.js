@@ -159,6 +159,14 @@ function getRequestOrigin(request, requestedOrigin) {
     return requestedOrigin.replace(/\/$/, '')
   }
 
+  if (origin) {
+  return origin.replace(/\/$/, '')
+}
+
+  if (requestedOrigin) {
+    return requestedOrigin.replace(/\/$/, '')
+  }
+
   const explicitAppUrl =
     process.env.APP_URL ??
     process.env.PUBLIC_APP_URL ??
@@ -166,10 +174,6 @@ function getRequestOrigin(request, requestedOrigin) {
 
   if (explicitAppUrl) {
     return explicitAppUrl.replace(/\/$/, '')
-  }
-
-  if (origin) {
-    return origin.replace(/\/$/, '')
   }
 
   const forwardedProto = request.headers['x-forwarded-proto']
