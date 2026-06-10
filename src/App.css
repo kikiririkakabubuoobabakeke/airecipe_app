@@ -1464,6 +1464,74 @@ button:disabled {
   justify-self: start;
 }
 
+.settings-admin-button {
+  margin-top: 16px;
+}
+
+.contact-page,
+.admin-page {
+  max-width: 1040px;
+}
+
+.contact-form {
+  max-width: 760px;
+}
+
+.contact-form__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.admin-console {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-message-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-message-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+
+.admin-message-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.admin-message-card__header h3 {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 1.02rem;
+}
+
+.admin-message-card__header p,
+.admin-message-card__meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.admin-message-card__body {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.admin-message-card__meta {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+
 .settings-session-row {
   display: flex;
   align-items: center;
@@ -1528,7 +1596,10 @@ button:disabled {
 
   .account-button {
     width: 42px;
+    height: 42px;
     padding: 0;
+    gap: 0;
+    flex: 0 0 42px;
   }
 
   .home {

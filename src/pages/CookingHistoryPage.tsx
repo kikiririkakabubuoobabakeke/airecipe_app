@@ -9,9 +9,10 @@ type CookingHistoryPageProps = {
   onNavigate?: (page: AppDestination) => void
   onSelectRecipe: (recipe: Recipe) => void
   onLogout?: () => void | Promise<void>
+  initialFilter?: RecipeFilter
 }
 
-type RecipeFilter = 'all' | 'uncooked' | 'cooked' | 'favorite'
+export type RecipeFilter = 'all' | 'uncooked' | 'cooked' | 'favorite'
 
 const recipeFilters: Array<{
   labelKey: Parameters<TranslateFn>[0]
@@ -62,13 +63,14 @@ export function CookingHistoryPage({
   onNavigate,
   onSelectRecipe,
   onLogout,
+  initialFilter = 'all',
 }: CookingHistoryPageProps) {
   const { language, t } = useI18n()
   const [recipes, setRecipes] = useState<Recipe[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [retryCount, setRetryCount] = useState(0)
-  const [activeFilter, setActiveFilter] = useState<RecipeFilter>('all')
+  const [activeFilter, setActiveFilter] = useState<RecipeFilter>(initialFilter)
   const filteredRecipes = useMemo(
     () =>
       recipes.filter((recipe) => {

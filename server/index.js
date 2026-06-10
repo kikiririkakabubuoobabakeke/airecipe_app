@@ -12,6 +12,7 @@ import {
 import {
   createSessionFromTokens,
   createGoogleLoginUrl,
+  ensurePublicUser,
   getUserFromAccessToken,
   refreshSessionFromRefreshToken,
   sendPasswordResetEmail,
@@ -40,6 +41,10 @@ import {
   getUserPreferences,
   updateUserPreferences,
 } from './preferences.js'
+import {
+  getContactMessagesForAdmin,
+  submitContactMessageForUser,
+} from './contact.js'
 import { checkSupabaseConnection } from './supabase.js'
 
 const port = Number(process.env.PORT ?? 8787)
@@ -159,7 +164,9 @@ async function requireAuthenticatedUser(request) {
 
   if (accessToken) {
     try {
-      const user = await getUserFromAccessToken(accessToken)
+      const user = await ensurePublicUser(
+        await getUserFromAccessToken(accessToken),
+      )
 
       if (user?.id) {
         return {
@@ -314,6 +321,16 @@ export async function handleApiRequest(request, response) {
     return
   }
 
+  if (request.method === 'POST' && url.pathname === '/api/contact') {
+    await handleContactSubmit(request, response, authUser)
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/admin/contact-messages') {
+    await handleAdminContactMessages(authUser, response)
+    return
+  }
+
   if (request.method === 'GET' && url.pathname === '/api/cooking-history') {
     await handleCookingHistory(
       authUser.id,
@@ -437,6 +454,7 @@ async function handleGeminiGenerate(request, response) {
       prompt: body?.prompt,
       imageBase64: body?.imageBase64,
       mimeType: body?.mimeType,
+      responseMimeType: body?.responseMimeType,
       model: body?.model,
     })
 
@@ -836,6 +854,50 @@ async function handlePreferencesUpdate(request, response, userId) {
       ok: false,
       message:
         error instanceof Error ? error.message : 'Preferences update failed',
+    })
+  }
+}
+
+async function handleContactSubmit(request, response, user) {
+  try {
+    const body = await readJsonBody(request)
+    const contactMessage = await submitContactMessageForUser(user, {
+      ...body,
+      userAgent: request.headers['user-agent'] ?? null,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      contactMessage,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Contact request failed'
+    const statusCode = /required/.test(message) ? 400 : 500
+
+    sendJson(response, statusCode, {
+      ok: false,
+      message,
+    })
+  }
+}
+
+async function handleAdminContactMessages(user, response) {
+  try {
+    const contactMessages = await getContactMessagesForAdmin(user)
+
+    sendJson(response, 200, {
+      ok: true,
+      contactMessages,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Admin contact request failed'
+    const statusCode = /Admin permission/.test(message) ? 403 : 500
+
+    sendJson(response, statusCode, {
+      ok: false,
+      message,
     })
   }
 }

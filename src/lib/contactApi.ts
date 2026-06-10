@@ -5,15 +5,17 @@ type ApiResponse<T> =
       message?: string
     }
 
-export type GeminiGenerateResult = {
-  model: string
-  attemptedModels?: string[]
-  text: string
-  images: Array<{
-    mimeType: string
-    data: string
-  }>
-  raw: unknown
+export type ContactMessage = {
+  contactId: string
+  userId: string | null
+  userEmail: string | null
+  subject: string
+  message: string
+  pageUrl: string | null
+  userAgent: string | null
+  status: string
+  createdAt: string
+  updatedAt?: string | null
 }
 
 async function readJson<T>(response: Response): Promise<T> {
@@ -43,32 +45,32 @@ async function readJson<T>(response: Response): Promise<T> {
   return payload as T
 }
 
-export async function generateGeminiContent({
-  prompt,
-  imageBase64,
-  mimeType,
-  model,
-  responseMimeType,
-}: {
-  prompt: string
-  imageBase64?: string
-  mimeType?: string
-  model?: string
-  responseMimeType?: string
+export async function submitContactMessage(input: {
+  subject: string
+  message: string
+  pageUrl?: string | null
 }) {
-  const response = await fetch('/api/gemini/generate', {
+  const response = await fetch('/api/contact', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({
-      prompt,
-      imageBase64,
-      mimeType,
-      model,
-      responseMimeType,
-    }),
+    body: JSON.stringify(input),
   })
 
-  return readJson<GeminiGenerateResult>(response)
+  return readJson<{
+    contactMessage: ContactMessage
+  }>(response)
+}
+
+export async function fetchAdminContactMessages() {
+  const response = await fetch('/api/admin/contact-messages', {
+    credentials: 'same-origin',
+    cache: 'no-store',
+  })
+
+  return readJson<{
+    contactMessages: ContactMessage[]
+  }>(response)
 }

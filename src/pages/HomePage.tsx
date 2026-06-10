@@ -29,6 +29,7 @@ type HomePageProps = {
   onNavigate?: (page: AppDestination) => void
   onSelectRecipe?: (recipe: Recipe) => void
   onLogout?: () => void | Promise<void>
+  onShowFavorites?: () => void
 }
 
 function isNearExpiration(ingredient: Ingredient, leadDays = 3) {
@@ -103,6 +104,7 @@ export function HomePage({
   onNavigate,
   onSelectRecipe,
   onLogout,
+  onShowFavorites,
 }: HomePageProps) {
   const { language, t } = useI18n()
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
@@ -278,7 +280,11 @@ export function HomePage({
                 onAction={
                   feature.icon === 'settings'
                     ? () => onNavigate?.('settings')
-                    : undefined
+                    : feature.icon === 'heart'
+                      ? onShowFavorites
+                      : feature.icon === 'message'
+                        ? () => onNavigate?.('contact')
+                        : undefined
                 }
               />
             ))}

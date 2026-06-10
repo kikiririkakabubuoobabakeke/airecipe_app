@@ -5,12 +5,17 @@ import './App.css'
 import { HomePage } from './pages/HomePage'
 import { FridgePage } from './pages/FridgePage'
 import { RecipeDetailPage } from './pages/RecipeDetailPage'
-import { CookingHistoryPage } from './pages/CookingHistoryPage'
+import {
+  CookingHistoryPage,
+  type RecipeFilter,
+} from './pages/CookingHistoryPage'
 import { ReceiptScanPage } from './pages/ReceiptScanPage'
 import { GeminiTestPage } from './pages/GeminiTestPage'
 import { IngredientRegisterPage } from './pages/IngredientRegisterPage'
 import { ReceiptDetailRegisterPage } from './pages/ReceiptDetailRegisterPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { ContactPage } from './pages/ContactPage'
+import { AdminConsolePage } from './pages/AdminConsolePage'
 import { RecipeGeneratePage } from './pages/RecipeGeneratePage'
 import LoginScreen from './pages/LoginScreen'
 import RegisterPage from './pages/RegisterPage'
@@ -69,6 +74,14 @@ function getPageFromPath(): AppDestination {
 
   if (window.location.pathname === '/settings') {
     return 'settings'
+  }
+
+  if (window.location.pathname === '/contact') {
+    return 'contact'
+  }
+
+  if (window.location.pathname === '/admin') {
+    return 'admin'
   }
 
   return 'home'
@@ -152,6 +165,8 @@ function App() {
   const [isAuthLoading, setIsAuthLoading] = useState(true)
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null)
   const [recipeBackPage, setRecipeBackPage] = useState<AppDestination>('home')
+  const [historyInitialFilter, setHistoryInitialFilter] =
+    useState<RecipeFilter>('all')
   const [selectedReceiptItems, setSelectedReceiptItems] = useState<ReceiptIngredientCandidate[]>([])
   const [receiptDetailBackPage, setReceiptDetailBackPage] =
     useState<AppDestination>('receipt')
@@ -264,7 +279,22 @@ function App() {
 
     pushPath(getPathForPage(page))
 
+    if (page === 'history') {
+      setHistoryInitialFilter('all')
+    }
+
     setCurrentPage(page)
+  }
+
+  function handleNavigateToFavoriteHistory() {
+    if (!currentUser) {
+      handleNavigate('login')
+      return
+    }
+
+    setHistoryInitialFilter('favorite')
+    pushPath('/history')
+    setCurrentPage('history')
   }
 
   function handleAuthenticated(user: AuthUser) {
@@ -347,6 +377,7 @@ function App() {
         onNavigate={handleNavigate}
         onSelectRecipe={handleSelectRecipe}
         onLogout={handleLogout}
+        initialFilter={historyInitialFilter}
       />
     )
   }
@@ -411,12 +442,27 @@ function App() {
     )
   }
 
+  if (currentPage === 'contact') {
+    return <ContactPage onNavigate={handleNavigate} onLogout={handleLogout} />
+  }
+
+  if (currentPage === 'admin') {
+    return (
+      <AdminConsolePage
+        user={currentUser}
+        onNavigate={handleNavigate}
+        onLogout={handleLogout}
+      />
+    )
+  }
+
   if (currentPage === 'login') {
     return (
       <HomePage
         onNavigate={handleNavigate}
         onSelectRecipe={handleSelectRecipe}
         onLogout={handleLogout}
+        onShowFavorites={handleNavigateToFavoriteHistory}
       />
     )
   }
@@ -437,6 +483,7 @@ function App() {
       onNavigate={handleNavigate}
       onSelectRecipe={handleSelectRecipe}
       onLogout={handleLogout}
+      onShowFavorites={handleNavigateToFavoriteHistory}
     />
   )
 }

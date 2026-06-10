@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { Topbar } from '../components/Topbar'
 import { generateGeminiContent } from '../lib/geminiApi'
@@ -54,19 +54,76 @@ function parseJsonFromModel(text: string, errorMessage: string) {
     .replace(/^```json\s*/i, '')
     .replace(/^```\s*/i, '')
     .replace(/\s*```$/i, '')
+    .trim()
 
   try {
     return JSON.parse(normalized)
   } catch {
-    const start = normalized.indexOf('{')
-    const end = normalized.lastIndexOf('}')
+    const jsonText = extractJsonObjectText(normalized)
 
-    if (start === -1 || end === -1 || end <= start) {
+    if (!jsonText) {
       throw new Error(errorMessage)
     }
 
-    return JSON.parse(normalized.slice(start, end + 1))
+    return JSON.parse(repairModelJson(jsonText))
   }
+}
+
+function repairModelJson(text: string) {
+  return text
+    .replace(/,\s*(?:\.{3}|…)\s*(?=[}\]])/g, '')
+    .replace(/(?:\.{3}|…)\s*,?/g, '')
+    .replace(/,\s*([}\]])/g, '$1')
+    .trim()
+}
+
+function extractJsonObjectText(text: string) {
+  const start = text.indexOf('{')
+
+  if (start === -1) {
+    return null
+  }
+
+  let depth = 0
+  let isInString = false
+  let isEscaped = false
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index]
+
+    if (isEscaped) {
+      isEscaped = false
+      continue
+    }
+
+    if (char === '\\') {
+      isEscaped = true
+      continue
+    }
+
+    if (char === '"') {
+      isInString = !isInString
+      continue
+    }
+
+    if (isInString) {
+      continue
+    }
+
+    if (char === '{') {
+      depth += 1
+    }
+
+    if (char === '}') {
+      depth -= 1
+
+      if (depth === 0) {
+        return text.slice(start, index + 1)
+      }
+    }
+  }
+
+  return null
 }
 
 function normalizeFoodCandidates(
@@ -116,6 +173,8 @@ export function IngredientRegisterPage({
   onLogout,
 }: IngredientRegisterPageProps) {
   const { t } = useI18n()
+  const videoRef = useRef<HTMLVideoElement | null>(null)
+  const cameraStreamRef = useRef<MediaStream | null>(null)
   const [method, setMethod] = useState<RegisterMethod>('receipt')
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -125,6 +184,21 @@ export function IngredientRegisterPage({
   const [recognizedItems, setRecognizedItems] = useState<
     ReceiptIngredientCandidate[]
   >([])
+  const [isCameraOpen, setIsCameraOpen] = useState(false)
+
+  useEffect(() => {
+    if (isCameraOpen && videoRef.current && cameraStreamRef.current) {
+      videoRef.current.srcObject = cameraStreamRef.current
+      void videoRef.current.play()
+    }
+  }, [isCameraOpen])
+
+  useEffect(() => {
+    return () => {
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+      cameraStreamRef.current = null
+    }
+  }, [])
 
   async function handleFoodImageChange(file: File | null) {
     if (!file) {
@@ -145,6 +219,7 @@ export function IngredientRegisterPage({
         imageBase64,
         mimeType: file.type || 'image/jpeg',
         model: foodRecognitionModel,
+        responseMimeType: 'application/json',
       })
       const items = normalizeFoodCandidates(
         parseJsonFromModel(result.text, t('ingredientRegister.parseFailed')),
@@ -174,6 +249,73 @@ export function IngredientRegisterPage({
     }
   }
 
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErrorMessage(t('receipt.cameraUnavailable'))
+      return
+    }
+
+    setStatusMessage('')
+    setErrorMessage('')
+
+    try {
+      cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' } },
+        audio: false,
+      })
+      cameraStreamRef.current = stream
+      setIsCameraOpen(true)
+    } catch (error) {
+      console.error('[vite] Food camera start failed:', error)
+      setErrorMessage(t('receipt.cameraStartFailed'))
+    }
+  }
+
+  function stopCamera() {
+    cameraStreamRef.current?.getTracks().forEach((track) => track.stop())
+    cameraStreamRef.current = null
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
+    setIsCameraOpen(false)
+  }
+
+  async function captureFoodImage() {
+    const video = videoRef.current
+
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setErrorMessage(t('receipt.cameraNotReady'))
+      return
+    }
+
+    const canvas = document.createElement('canvas')
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    const context = canvas.getContext('2d')
+
+    if (!context) {
+      setErrorMessage(t('receipt.captureFailed'))
+      return
+    }
+
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+
+    const blob = await new Promise<Blob | null>((resolve) => {
+      canvas.toBlob(resolve, 'image/jpeg', 0.92)
+    })
+
+    if (!blob) {
+      setErrorMessage(t('receipt.captureFailed'))
+      return
+    }
+
+    stopCamera()
+    await handleFoodImageChange(
+      new File([blob], `food-${Date.now()}.jpg`, { type: 'image/jpeg' }),
+    )
+  }
+
   function toggleRecognizedItem(index: number, selected: boolean) {
     setRecognizedItems((current) =>
       current.map((item, itemIndex) =>
@@ -200,6 +342,9 @@ export function IngredientRegisterPage({
     setStatusMessage('')
     setErrorMessage('')
     setDetailItems([])
+    if (nextMethod !== 'image') {
+      stopCamera()
+    }
   }
 
   if (detailItems.length) {
@@ -319,37 +464,67 @@ export function IngredientRegisterPage({
               <p className="register-image-lead">
                 {t('ingredientRegister.imageLead')}
               </p>
-              <div className="register-upload-grid register-upload-grid--single">
-                <label className="register-upload-zone">
+
+              <div className="panel receipt-uploader">
+                <div className="section-heading">
+                  <div>
+                    <p className="eyebrow">{t('receipt.sourceEyebrow')}</p>
+                    <h2>{t('receipt.sourceTitle')}</h2>
+                  </div>
+                </div>
+
+                <div className="receipt-source-actions">
+                  <label className="receipt-file-field">
                   <input
-                    className="register-upload-zone__input"
                     type="file"
                     accept="image/*"
-                    capture="environment"
                     onChange={(event) =>
                       void handleFoodImageChange(
                         event.currentTarget.files?.[0] ?? null,
                       )
                     }
                   />
-                  <span className="register-upload-zone__badge">
-                    {t('ingredientRegister.foodBadge')}
-                  </span>
-                  <strong>{t('ingredientRegister.shootFood')}</strong>
-                  <span>{t('ingredientRegister.foodEstimate')}</span>
-                  <span className="register-upload-zone__note">
-                    {t('ingredientRegister.fileNote')}
-                  </span>
-                </label>
-              </div>
+                    <span>{t('receipt.chooseImage')}</span>
+                  </label>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={isCameraOpen ? stopCamera : startCamera}
+                    disabled={isRecognizing}
+                  >
+                    {isCameraOpen ? t('receipt.stopCamera') : t('receipt.startCamera')}
+                  </button>
+                </div>
 
-              {imagePreviewUrl ? (
-                <img
-                  className="register-image-preview"
-                  src={imagePreviewUrl}
-                  alt={t('ingredientRegister.previewAlt')}
-                />
-              ) : null}
+                {isCameraOpen ? (
+                  <div className="receipt-camera-panel">
+                    <video
+                      ref={videoRef}
+                      className="receipt-camera-preview"
+                      playsInline
+                      muted
+                    />
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={captureFoodImage}
+                      disabled={isRecognizing}
+                    >
+                      {t('receipt.capture')}
+                    </button>
+                  </div>
+                ) : null}
+
+                {imagePreviewUrl ? (
+                  <img
+                    className="receipt-preview"
+                    src={imagePreviewUrl}
+                    alt={t('ingredientRegister.previewAlt')}
+                  />
+                ) : (
+                  <div className="receipt-placeholder">{t('receipt.noImage')}</div>
+                )}
+              </div>
 
               {recognizedItems.length ? (
                 <div className="register-recognition-result">
@@ -393,6 +568,7 @@ export function IngredientRegisterPage({
                     setImagePreviewUrl('')
                     setStatusMessage('')
                     setErrorMessage('')
+                    stopCamera()
                   }}
                 >
                   {t('common.cancel')}

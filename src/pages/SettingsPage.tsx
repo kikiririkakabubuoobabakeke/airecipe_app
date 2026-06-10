@@ -172,7 +172,25 @@ export function SettingsPage({
                   <span className="status-pill">{t('settings.signedIn')}</span>
                 </dd>
               </div>
+              {user.isAdmin ? (
+                <div>
+                  <dt>{t('settings.adminStatus')}</dt>
+                  <dd>
+                    <span className="status-pill">{t('settings.adminUser')}</span>
+                  </dd>
+                </div>
+              ) : null}
             </dl>
+            {user.isAdmin ? (
+              <button
+                type="button"
+                className="secondary-button settings-admin-button"
+                onClick={() => onNavigate?.('admin')}
+              >
+                <Icon name="message" />
+                <span>{t('settings.openAdminConsole')}</span>
+              </button>
+            ) : null}
           </article>
 
           <article className="panel settings-section">

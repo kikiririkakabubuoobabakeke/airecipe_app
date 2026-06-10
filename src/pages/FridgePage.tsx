@@ -309,6 +309,18 @@ export function FridgePage({
     () => [allCategoryKey, ...sortCategoryNames(Object.keys(groupedIngredients))],
     [groupedIngredients],
   )
+  const allInventoryIds = useMemo(
+    () => getInventoryIds(ingredients),
+    [ingredients],
+  )
+  const expiredInventoryIds = useMemo(
+    () =>
+      ingredients
+        .filter((item) => isExpired(item.expirationDate))
+        .map((item) => item.inventoryId)
+        .filter((id): id is number => typeof id === 'number'),
+    [ingredients],
+  )
   const displayActiveCategory = categories.includes(activeCategory)
     ? activeCategory
     : allCategoryKey
@@ -518,22 +530,27 @@ export function FridgePage({
   }
 
   function handleDeleteExpired() {
-    const expiredIds = ingredients
-      .filter(
-        (item) =>
-          typeof item.inventoryId === 'number' &&
-          selectedInventoryIds.has(item.inventoryId) &&
-          isExpired(item.expirationDate),
-      )
-      .map((item) => item.inventoryId)
-      .filter((id): id is number => typeof id === 'number')
+    if (!expiredInventoryIds.length) {
+      setStatusMessage(t('fridge.selection.deleteNone'))
+      return
+    }
 
     setDeleteConfirm({
-      inventoryIds: expiredIds,
-      message: t('fridge.selection.confirmDeleteSelectedExpired', {
-        count: expiredIds.length,
+      inventoryIds: expiredInventoryIds,
+      message: t('fridge.selection.confirmDeleteExpired', {
+        count: expiredInventoryIds.length,
       }),
     })
+  }
+
+  function handleSelectAll() {
+    setSelectedInventoryIds(new Set(allInventoryIds))
+    setIsSelectionMode(true)
+  }
+
+  function handleExitSelection() {
+    setSelectedInventoryIds(new Set())
+    setIsSelectionMode(false)
   }
 
   if (loading) {
@@ -638,6 +655,15 @@ export function FridgePage({
         </div>
 
         <div className="fridge-bulk-actions">
+          <button
+            type="button"
+            className="secondary-button danger-button"
+            onClick={handleDeleteExpired}
+            disabled={isSaving || expiredInventoryIds.length === 0}
+          >
+            {t('fridge.selection.deleteExpired')}
+          </button>
+
           {isSelectionMode ? (
             <>
               <span>
@@ -655,30 +681,19 @@ export function FridgePage({
               </button>
               <button
                 type="button"
-                className="secondary-button danger-button"
-                onClick={handleDeleteExpired}
-                disabled={
-                  isSaving ||
-                  !ingredients.some(
-                    (item) =>
-                      typeof item.inventoryId === 'number' &&
-                      selectedInventoryIds.has(item.inventoryId) &&
-                      isExpired(item.expirationDate),
-                  )
-                }
+                className="secondary-button"
+                onClick={handleSelectAll}
+                disabled={isSaving || allInventoryIds.length === 0}
               >
-                {t('fridge.selection.deleteSelectedExpired')}
+                {t('fridge.selection.selectAll')}
               </button>
               <button
                 type="button"
                 className="secondary-button fridge-selection-cancel"
-                onClick={() => {
-                  setSelectedInventoryIds(new Set())
-                  setIsSelectionMode(false)
-                }}
+                onClick={handleExitSelection}
                 disabled={isSaving}
               >
-                {t('fridge.selection.clear')}
+                {t('fridge.selection.exit')}
               </button>
             </>
           ) : (

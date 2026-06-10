@@ -83,6 +83,7 @@ function normalizeUser(user) {
   return {
     id: user.id,
     email: user.email,
+    isAdmin: Boolean(user.isAdmin),
   }
 }
 
@@ -90,7 +91,7 @@ function getFallbackEmail(userId) {
   return `user-${userId}@aicook.local`
 }
 
-async function ensurePublicUser(user) {
+export async function ensurePublicUser(user) {
   if (!user?.id) {
     return null
   }
@@ -114,7 +115,27 @@ async function ensurePublicUser(user) {
     throw new Error(`Failed to sync public user: ${error.message}`)
   }
 
-  return user
+  const { data: publicUser, error: fetchError } = await client
+    .from('users')
+    .select('is_admin')
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  if (fetchError?.code === '42703') {
+    return {
+      ...user,
+      isAdmin: false,
+    }
+  }
+
+  if (fetchError) {
+    throw new Error(`Failed to fetch public user: ${fetchError.message}`)
+  }
+
+  return {
+    ...user,
+    isAdmin: Boolean(publicUser?.is_admin),
+  }
 }
 
 function normalizeSession(session) {

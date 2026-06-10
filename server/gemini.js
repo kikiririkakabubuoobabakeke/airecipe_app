@@ -72,6 +72,7 @@ export async function generateGeminiContent({
   prompt,
   imageBase64,
   mimeType,
+  responseMimeType,
   model = defaultGeminiModel,
 }) {
   if (!geminiApiKey) {
@@ -101,10 +102,35 @@ export async function generateGeminiContent({
       },
     ],
   }
-  const payload = await requestGeminiModel({
-    model,
-    body,
-  })
+
+  if (responseMimeType) {
+    body.generationConfig = {
+      responseMimeType,
+    }
+  }
+
+  let payload
+
+  try {
+    payload = await requestGeminiModel({
+      model,
+      body,
+    })
+  } catch (error) {
+    const message = String(error?.message ?? '')
+
+    if (!responseMimeType || !/responseMimeType|generationConfig|mime/i.test(message)) {
+      throw error
+    }
+
+    const { generationConfig, ...bodyWithoutGenerationConfig } = body
+    void generationConfig
+    payload = await requestGeminiModel({
+      model,
+      body: bodyWithoutGenerationConfig,
+    })
+  }
+
   const outputParts = payload?.candidates?.[0]?.content?.parts ?? []
 
   return {
