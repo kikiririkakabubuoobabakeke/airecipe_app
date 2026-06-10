@@ -1,17 +1,24 @@
 :root {
-  --app-bg: #ffffff;
+  --app-bg: #fff9f3;
   --surface: #ffffff;
-  --surface-soft: #f8f8f8;
-  --ink: #333333;
-  --muted: #666666;
-  --subtle: #8a8a8a;
-  --accent: #4f5b52;
-  --danger: #8a4a3f;
-  --warning: #8a6f2e;
-  --info: #4e5f78;
-  --line: #e6e6e6;
-  --shadow-soft: 0 18px 42px rgba(51, 51, 51, 0.08);
-  --shadow-subtle: 0 8px 24px rgba(51, 51, 51, 0.05);
+  --surface-soft: #fff3e8;
+  --surface-warm: #ffecd9;
+  --ink: #3d2218;
+  --muted: #7a5c4a;
+  --subtle: #a0806e;
+  --accent: #e85d26;
+  --accent-dark: #c94a18;
+  --success: #3d8b5f;
+  --danger: #d4453b;
+  --warning: #e09b2d;
+  --info: #c47a3a;
+  --line: #f0dcc8;
+  --danger-soft: #fde8e6;
+  --warning-soft: #fff3d6;
+  --success-soft: #e8f5ec;
+  --info-soft: #fff0e0;
+  --shadow-soft: 0 18px 42px rgba(61, 34, 24, 0.1);
+  --shadow-subtle: 0 8px 24px rgba(61, 34, 24, 0.06);
   color: var(--ink);
   background: var(--app-bg);
   font-family:

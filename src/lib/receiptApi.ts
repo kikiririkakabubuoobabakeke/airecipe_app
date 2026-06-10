@@ -32,7 +32,7 @@ async function readJson<T>(response: Response): Promise<T> {
   }
 
   if (!payload.ok) {
-    throw new Error(payload.message ?? response.statusText)
+    throw new Error((payload as { message?: string }).message ?? response.statusText)
   }
 
   return payload as T
@@ -65,11 +65,17 @@ export async function importReceiptItems(
     body: JSON.stringify({ items }),
   })
 
-  return readJson<{
+  const result = await readJson<{
     userId: string
     importedCount: number
     inventory: Ingredient[]
   }>(response)
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('inventory-updated'))
+  }
+
+  return result
 }
 
 export async function importReceiptItemsDetail(
@@ -83,8 +89,14 @@ export async function importReceiptItemsDetail(
     body: JSON.stringify({ items }),
   })
 
-  return readJson<{
+  const result = await readJson<{
     userId: string
     importedCount: number
   }>(response)
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('inventory-updated'))
+  }
+
+  return result
 }

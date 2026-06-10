@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Topbar } from '../components/Topbar'
 import { importReceiptItemsDetail } from '../lib/receiptApi'
 import type { AppDestination, ReceiptIngredientCandidate } from '../types/ui'
@@ -16,66 +16,71 @@ type EditableCandidate = ReceiptIngredientCandidate & {
   memo: string
 }
 
+function getDaysForCategory(category: string) {
+  switch (category) {
+    case '肉・卵・魚':
+    case '肉':
+    case '魚':
+      return 2
+    case '野菜':
+      return 5
+    case '乳製品':
+      return 7
+    case '加工品':
+      return 14
+    default:
+      return 7
+  }
+}
+
+function addDays(dateStr: string, days: number) {
+  const date = new Date(dateStr)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function normalizeCategory(category: string) {
+  if (category === '肉' || category === '魚' || category === '卵') {
+    return '肉・卵・魚'
+  }
+
+  return category
+}
+
+function createInitialFormData(items: ReceiptIngredientCandidate[]) {
+  const today = new Date().toISOString().slice(0, 10)
+
+  return items.map((item) => {
+    const category = normalizeCategory(item.category)
+    const defaultDays = getDaysForCategory(category)
+    const bestBefore =
+      item.bestBeforeDate || item.expirationDate || addDays(today, defaultDays)
+    const expiration = item.expirationDate || addDays(today, defaultDays + 1)
+
+    return {
+      ...item,
+      category,
+      quantity: item.quantity ?? 1,
+      gram: item.gram ?? null,
+      bestBeforeDate: bestBefore,
+      expirationDate: expiration,
+      memo: item.memo || '',
+    } satisfies EditableCandidate
+  })
+}
+
 export function ReceiptDetailRegisterPage({
   items,
   onBack,
   onNavigate,
   onLogout,
 }: ReceiptDetailRegisterPageProps) {
-  const [formData, setFormData] = useState<EditableCandidate[]>([])
+  const [formData, setFormData] = useState<EditableCandidate[]>(() =>
+    createInitialFormData(items),
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
-
-  // Set initial default data based on passed items
-  useEffect(() => {
-    const today = new Date().toISOString().slice(0, 10)
-
-    const getDaysForCategory = (cat: string) => {
-      switch (cat) {
-        case '肉・卵・魚':
-        case '肉':
-        case '魚':
-          return 2
-        case '野菜':
-          return 5
-        case '乳製品':
-          return 7
-        case '加工品':
-          return 14
-        default:
-          return 7
-      }
-    }
-
-    const addDays = (dateStr: string, days: number) => {
-      const date = new Date(dateStr)
-      date.setDate(date.getDate() + days)
-      return date.toISOString().slice(0, 10)
-    }
-
-    const initialData = items.map((item) => {
-      let cat = item.category
-      if (cat === '肉' || cat === '魚' || cat === '卵') {
-        cat = '肉・卵・魚'
-      }
-
-      const defaultDays = getDaysForCategory(cat)
-      const bestBefore = item.bestBeforeDate || item.expirationDate || addDays(today, defaultDays)
-      const expiration = item.expirationDate || addDays(today, defaultDays + 1)
-
-      return {
-        ...item,
-        category: cat,
-        quantity: item.quantity ?? 1,
-        gram: item.gram ?? null,
-        bestBeforeDate: bestBefore,
-        expirationDate: expiration,
-        memo: item.memo || '',
-      } as EditableCandidate
-    })
-    setFormData(initialData)
-  }, [items])
 
   const categories = [
     '肉・卵・魚',
@@ -85,10 +90,10 @@ export function ReceiptDetailRegisterPage({
     'その他',
   ]
 
-  const handleChange = (
+  const handleChange = <K extends keyof EditableCandidate>(
     index: number,
-    field: keyof EditableCandidate,
-    value: any,
+    field: K,
+    value: EditableCandidate[K],
   ) => {
     setFormData((current) =>
       current.map((item, idx) =>

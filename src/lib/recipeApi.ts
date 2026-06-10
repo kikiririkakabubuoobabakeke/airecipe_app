@@ -78,10 +78,16 @@ export async function createInventoryItem(item: InventoryMutationInput) {
     body: JSON.stringify(item),
   })
 
-  return readJson<{
+  const result = await readJson<{
     userId: string
     inventory: Ingredient[]
   }>(response)
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('inventory-updated'))
+  }
+
+  return result
 }
 
 export async function updateInventoryItem(item: InventoryMutationInput) {
@@ -94,10 +100,16 @@ export async function updateInventoryItem(item: InventoryMutationInput) {
     body: JSON.stringify(item),
   })
 
-  return readJson<{
+  const result = await readJson<{
     userId: string
     inventory: Ingredient[]
   }>(response)
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('inventory-updated'))
+  }
+
+  return result
 }
 
 export async function deleteInventoryItem(inventoryId: number) {
@@ -110,10 +122,16 @@ export async function deleteInventoryItem(inventoryId: number) {
     body: JSON.stringify({ inventoryId }),
   })
 
-  return readJson<{
+  const result = await readJson<{
     userId: string
     inventory: Ingredient[]
   }>(response)
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('inventory-updated'))
+  }
+
+  return result
 }
 
 export async function generateRecipes(
@@ -158,12 +176,18 @@ export async function markRecipeCooked(
     }),
   })
 
-  return readJson<{
+  const result = await readJson<{
     userId: string
     recipeId: string
     servings: number
     inventory: Ingredient[]
   }>(response)
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('inventory-updated'))
+  }
+
+  return result
 }
 
 export async function fetchCookingHistory(language?: LanguageCode) {

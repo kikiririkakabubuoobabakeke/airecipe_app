@@ -20,6 +20,18 @@ type Summary = {
 
 const allCategoryKey = '__all__'
 
+const categoryToneMap: Record<string, string> = {
+  '肉・卵・魚': 'meat',
+  野菜: 'veg',
+  乳製品: 'dairy',
+  加工品: 'processed',
+  その他: 'other',
+}
+
+function getCategoryTone(category: string) {
+  return categoryToneMap[category] ?? 'other'
+}
+
 type IngredientFormState = {
   inventoryId?: number
   name: string
@@ -32,9 +44,17 @@ type IngredientFormState = {
   memo: string
 }
 
+const formCategories = [
+  '肉・卵・魚',
+  '野菜',
+  '乳製品',
+  '加工品',
+  'その他',
+]
+
 const emptyForm: IngredientFormState = {
   name: '',
-  category: 'その他',
+  category: '',
   quantity: '',
   gram: '',
   expirationDate: '',
@@ -81,13 +101,36 @@ function formatDate(value: string | null | undefined, language: string) {
   }).format(date)
 }
 
+function formatStock(
+  quantity: number | null | undefined,
+  gram: number | null | undefined,
+  language: string,
+) {
+  const parts: string[] = []
+
+  if (quantity !== null && quantity !== undefined && quantity > 0) {
+    const unit = language === 'ja' ? '個' : 'pc(s)'
+    parts.push(`${quantity}${unit}`)
+  }
+
+  if (gram !== null && gram !== undefined && gram > 0) {
+    parts.push(`${gram}g`)
+  }
+
+  if (parts.length === 0) {
+    return '-'
+  }
+
+  return parts.join(' / ')
+}
+
 function buildSummary(ingredients: Ingredient[]): Summary {
   return {
     totalCount: ingredients.length,
     uniqueNamesCount: new Set(ingredients.map((item) => item.name)).size,
     openedCount: ingredients.filter((item) => item.isOpened).length,
     nearExpirationCount: ingredients.filter((item) =>
-      isNearExpiration(item.expirationDate),
+      isNearExpiration(item.expirationDate) || isNearExpiration(item.bestBeforeDate),
     ).length,
   }
 }
@@ -96,7 +139,7 @@ function buildFormFromIngredient(ingredient: Ingredient): IngredientFormState {
   return {
     inventoryId: ingredient.inventoryId,
     name: ingredient.name,
-    category: ingredient.category ?? 'その他',
+    category: ingredient.category ?? '',
     quantity: ingredient.quantity ? String(ingredient.quantity) : '',
     gram: ingredient.gram ? String(ingredient.gram) : '',
     expirationDate: ingredient.expirationDate ?? '',
@@ -158,6 +201,17 @@ export function FridgePage({
   const displayActiveCategory = categories.includes(activeCategory)
     ? activeCategory
     : allCategoryKey
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      [allCategoryKey]: ingredients.length,
+    }
+
+    for (const [category, items] of Object.entries(groupedIngredients)) {
+      counts[category] = items.length
+    }
+
+    return counts
+  }, [groupedIngredients, ingredients.length])
 
   useEffect(() => {
     let isMounted = true
@@ -217,6 +271,11 @@ export function FridgePage({
 
     if (!input.name) {
       setFormError(t('fridge.form.nameRequired'))
+      return
+    }
+
+    if (!formState.category || formState.category === '') {
+      setFormError(t('fridge.form.categoryRequired'))
       return
     }
 
@@ -344,9 +403,14 @@ export function FridgePage({
       <Topbar onNavigate={onNavigate} onLogout={onLogout} />
 
       <main className="fridge-container">
-        <div className="fridge-header">
-          <h1>{t('fridge.title')}</h1>
-          <div className="fridge-header-actions">
+        <div className="fridge-hero">
+          <div className="fridge-header">
+            <div className="fridge-header__text">
+              <p className="eyebrow fridge-eyebrow">{t('home.ingredients.eyebrow')}</p>
+              <h1>{t('fridge.title')}</h1>
+              <p className="fridge-header__lead">{t('fridge.lead')}</p>
+            </div>
+            <div className="fridge-header-actions">
             <button
               type="button"
               className="primary-button back-home-button"
@@ -366,32 +430,53 @@ export function FridgePage({
               <span>{t('common.backHome')}</span>
             </button>
           </div>
+          </div>
         </div>
 
         {statusMessage ? (
-          <p className="status-message" role="status">
+          <p className="status-message success-message" role="status">
             {statusMessage}
           </p>
         ) : null}
 
         <section className="fridge-summary" aria-label={t('fridge.summaryLabel')}>
           <div className="summary-card">
-            <span className="card-label">{t('fridge.summary.total')}</span>
+            <div className="summary-card__top">
+              <span className="summary-card__icon tone-slate">
+                <Icon name="basket" />
+              </span>
+              <span className="card-label">{t('fridge.summary.total')}</span>
+            </div>
             <strong className="card-value">{summary.totalCount}</strong>
             <span className="card-note">{t('fridge.summary.totalNote')}</span>
           </div>
           <div className="summary-card">
-            <span className="card-label">{t('fridge.summary.unique')}</span>
+            <div className="summary-card__top">
+              <span className="summary-card__icon tone-blue">
+                <Icon name="list" />
+              </span>
+              <span className="card-label">{t('fridge.summary.unique')}</span>
+            </div>
             <strong className="card-value">{summary.uniqueNamesCount}</strong>
             <span className="card-note">{t('fridge.summary.uniqueNote')}</span>
           </div>
           <div className="summary-card">
-            <span className="card-label">{t('fridge.summary.opened')}</span>
+            <div className="summary-card__top">
+              <span className="summary-card__icon tone-green">
+                <Icon name="spark" />
+              </span>
+              <span className="card-label">{t('fridge.summary.opened')}</span>
+            </div>
             <strong className="card-value">{summary.openedCount}</strong>
             <span className="card-note">{t('fridge.summary.openedNote')}</span>
           </div>
           <div className="summary-card near-expiration">
-            <span className="card-label">{t('fridge.summary.nearExpiration')}</span>
+            <div className="summary-card__top">
+              <span className="summary-card__icon tone-red">
+                <Icon name="bell" />
+              </span>
+              <span className="card-label">{t('fridge.summary.nearExpiration')}</span>
+            </div>
             <strong className="card-value">{summary.nearExpirationCount}</strong>
             <span className="card-note">
               {t('fridge.summary.nearExpirationNote')}
@@ -404,19 +489,30 @@ export function FridgePage({
             <button
               key={category}
               type="button"
-              className={`filter-pill ${displayActiveCategory === category ? 'active' : ''
-                }`}
+              className={`filter-pill ${displayActiveCategory === category ? 'active' : ''}`}
               onClick={() => setActiveCategory(category)}
             >
               {category === allCategoryKey ? t('fridge.filter.all') : category}
+              <span className="filter-pill__count">{categoryCounts[category] ?? 0}</span>
             </button>
           ))}
         </div>
 
         <div className="fridge-tables">
           {ingredients.length === 0 ? (
-            <div className="empty-state">
-              {t('fridge.empty')}
+            <div className="fridge-empty-state">
+              <div className="fridge-empty-state__icon">
+                <Icon name="basket" />
+              </div>
+              <p>{t('fridge.empty')}</p>
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() => onNavigate('ingredient-register')}
+              >
+                <Icon name="plus" />
+                <span>{t('fridge.emptyAction')}</span>
+              </button>
             </div>
           ) : (
             Object.entries(groupedIngredients)
@@ -427,7 +523,12 @@ export function FridgePage({
               )
               .map(([category, items]) => (
                 <div key={category} className="category-table-wrapper">
-                  <h2 className="category-title">{category}</h2>
+                  <h2
+                    className={`category-title category-title--${getCategoryTone(category)}`}
+                  >
+                    <span className="category-title__label">{category}</span>
+                    <span className="category-title__count">{items.length}</span>
+                  </h2>
                   <div className="table-container">
                     <table className="fridge-table">
                       <thead>
@@ -446,55 +547,76 @@ export function FridgePage({
                             item.inventoryId ??
                             item.ingredientId ??
                             `${item.name}-${index}`
-                          const isWarning = isNearExpiration(
-                            item.expirationDate || item.bestBeforeDate
-                          )
-                          const unopenedText = language === 'ja' ? '未開封' : language === 'fr' ? 'Non ouvert' : 'Unopened'
-
+                          const isWarning =
+                            isNearExpiration(item.expirationDate) ||
+                            isNearExpiration(item.bestBeforeDate)
                           return (
-                            <tr key={rowKey}>
-                              <td className="ingredient-name-cell">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <tr key={rowKey} className={isWarning ? 'near-expiration-row' : ''}>
+                              <td
+                                className="ingredient-name-cell"
+                                data-label={t('fridge.table.ingredient')}
+                              >
+                                <div className="ingredient-name-row">
                                   <span className="ingredient-name">
                                     {item.name}
                                   </span>
+                                  {isWarning ? (
+                                    <span className="expiry-alert">
+                                      <Icon name="bell" />
+                                      {t('fridge.summary.nearExpiration')}
+                                    </span>
+                                  ) : null}
                                   <button
                                     type="button"
                                     className={`opened-badge-button ${item.isOpened ? 'opened' : 'unopened'}`}
                                     onClick={() => void handleToggleOpened(item)}
-                                    title={item.isOpened ? 'Click to mark unopened' : 'Click to mark opened'}
-                                    style={{
-                                      padding: '2px 8px',
-                                      borderRadius: '12px',
-                                      fontSize: '0.72rem',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.2s',
-                                      backgroundColor: item.isOpened ? 'rgba(74, 222, 128, 0.2)' : 'rgba(156, 163, 175, 0.1)',
-                                      color: item.isOpened ? '#15803d' : '#4b5563',
-                                      fontWeight: 'bold',
-                                    }}
+                                    title={
+                                      item.isOpened
+                                        ? t('fridge.toggleMarkUnopened')
+                                        : t('fridge.toggleMarkOpened')
+                                    }
                                     disabled={isSaving}
                                   >
-                                    {item.isOpened ? t('fridge.form.isOpened') : unopenedText}
+                                    {item.isOpened
+                                      ? t('fridge.form.isOpened')
+                                      : t('fridge.form.unopened')}
                                   </button>
                                 </div>
                               </td>
-                              <td>
+                              <td data-label={t('fridge.table.stock')}>
                                 <span className="amount-text">
-                                  {item.amount}
+                                  {formatStock(item.quantity, item.gram, language)}
                                 </span>
                               </td>
-                              <td>
-                                {formatDate(item.bestBeforeDate, language)}
+                              <td data-label={t('fridge.table.bestBefore')}>
+                                <span
+                                  className={
+                                    isNearExpiration(item.bestBeforeDate)
+                                      ? 'expiration-warning'
+                                      : 'date-text'
+                                  }
+                                >
+                                  {formatDate(item.bestBeforeDate, language)}
+                                </span>
                               </td>
-                              <td>
-                                <span className={isWarning ? 'expiration-warning' : ''}>
+                              <td data-label={t('fridge.table.expiration')}>
+                                <span
+                                  className={
+                                    isNearExpiration(item.expirationDate)
+                                      ? 'expiration-warning'
+                                      : 'date-text'
+                                  }
+                                >
                                   {formatDate(item.expirationDate, language)}
                                 </span>
                               </td>
-                              <td>{item.memo ?? '-'}</td>
-                              <td>
+                              <td
+                                className="memo-cell"
+                                data-label={t('fridge.table.memo')}
+                              >
+                                {item.memo ?? '-'}
+                              </td>
+                              <td data-label={t('fridge.table.actions')}>
                                 <div className="fridge-row-actions">
                                   <button
                                     type="button"
@@ -555,13 +677,23 @@ export function FridgePage({
               </label>
               <label>
                 <span>{t('fridge.form.category')}</span>
-                <input
-                  value={formState.category}
-                  onChange={(event) =>
-                    updateFormField('category', event.target.value)
-                  }
-                  placeholder={t('fridge.form.categoryPlaceholder')}
-                />
+                <div className="select-wrapper">
+                  <select
+                    value={formState.category}
+                    onChange={(event) =>
+                      updateFormField('category', event.target.value)
+                    }
+                  >
+                    <option value="" disabled>
+                      {t('fridge.form.categorySelect')}
+                    </option>
+                    {formCategories.map((cat) => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </label>
               <label>
                 <span>{t('fridge.form.quantity')}</span>
@@ -611,18 +743,15 @@ export function FridgePage({
                   placeholder={t('fridge.form.memoPlaceholder')}
                 />
               </label>
-              <label style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '8px', cursor: 'pointer', gridColumn: 'span 2', padding: '8px 0' }}>
+              <label className="form-checkbox-field">
                 <input
                   type="checkbox"
                   checked={formState.isOpened}
                   onChange={(event) =>
                     setFormState((curr) => ({ ...curr, isOpened: event.target.checked }))
                   }
-                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                 />
-                <span style={{ fontSize: '0.9rem', userSelect: 'none', color: '#374151', fontWeight: '500' }}>
-                  {t('fridge.form.isOpened')}
-                </span>
+                <span>{t('fridge.form.isOpened')}</span>
               </label>
             </div>
 
