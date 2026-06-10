@@ -11,7 +11,7 @@ export type TranslationValues = Record<string, string | number>
 export const defaultLanguage: LanguageCode = 'ja'
 
 const jaMessages = {
-  'app.name': 'あいくっく',
+  'app.name': 'あいくっくdeploy check 2900369の一つ先 最新確認',
   'app.tagline': '食材管理と献立づくり',
   'common.backHome': 'ホームに戻る',
   'common.comingSoon': '準備中',
