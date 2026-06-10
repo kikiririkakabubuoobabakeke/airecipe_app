@@ -48,14 +48,10 @@ function normalizeCategory(category: string) {
 }
 
 function createInitialFormData(items: ReceiptIngredientCandidate[]) {
-  const today = new Date().toISOString().slice(0, 10)
-
   return items.map((item) => {
     const category = normalizeCategory(item.category)
-    const defaultDays = getDaysForCategory(category)
-    const bestBefore =
-      item.bestBeforeDate || item.expirationDate || addDays(today, defaultDays)
-    const expiration = item.expirationDate || addDays(today, defaultDays + 1)
+    const bestBefore = item.bestBeforeDate || ''
+    const expiration = item.expirationDate || ''
 
     return {
       ...item,
@@ -154,18 +150,7 @@ export function ReceiptDetailRegisterPage({
           </p>
         </div>
 
-        {/* Step Navigation Bar */}
-        <div className="step-bar">
-          <div className="step-item completed">
-            <span className="step-number">✓</span>
-            <span className="step-label">食材登録</span>
-          </div>
-          <div className="step-connector"></div>
-          <div className="step-item active">
-            <span className="step-number">2</span>
-            <span className="step-label">詳細登録</span>
-          </div>
-        </div>
+
 
         {/* Status Messages */}
         {statusMessage && (
@@ -275,21 +260,61 @@ export function ReceiptDetailRegisterPage({
 
                       {/* Best Before Date */}
                       <div className="field-group">
-                        <label>賞味期限</label>
+                        <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>賞味期限</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 'normal', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <input
+                              type="checkbox"
+                              checked={!item.bestBeforeDate}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleChange(index, 'bestBeforeDate', '')
+                                } else {
+                                  const today = new Date().toISOString().slice(0, 10)
+                                  const cat = normalizeCategory(item.category)
+                                  const defaultDays = getDaysForCategory(cat)
+                                  handleChange(index, 'bestBeforeDate', addDays(today, defaultDays))
+                                }
+                              }}
+                            />
+                            なし
+                          </span>
+                        </label>
                         <input
                           type="date"
                           value={item.bestBeforeDate}
                           onChange={(e) => handleChange(index, 'bestBeforeDate', e.target.value)}
+                          disabled={!item.bestBeforeDate}
                         />
                       </div>
 
-                      {/* Expiration Date */}
+                       {/* Expiration Date */}
                       <div className="field-group">
-                        <label>消費期限 (任意)</label>
+                        <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span>消費期限 (任意)</span>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 'normal', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <input
+                              type="checkbox"
+                              checked={!item.expirationDate}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  handleChange(index, 'expirationDate', '')
+                                } else {
+                                  const today = new Date().toISOString().slice(0, 10)
+                                  const cat = normalizeCategory(item.category)
+                                  const defaultDays = getDaysForCategory(cat)
+                                  handleChange(index, 'expirationDate', addDays(today, defaultDays + 1))
+                                }
+                              }}
+                            />
+                            なし
+                          </span>
+                        </label>
                         <input
                           type="date"
                           value={item.expirationDate}
                           onChange={(e) => handleChange(index, 'expirationDate', e.target.value)}
+                          disabled={!item.expirationDate}
                         />
                       </div>
 

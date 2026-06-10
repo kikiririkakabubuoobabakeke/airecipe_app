@@ -1928,7 +1928,7 @@ button:disabled {
 
 .fridge-row-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
 }
 
@@ -2720,4 +2720,73 @@ button:disabled {
   text-align: center;
   color: var(--muted);
   font-size: 13px;
+}
+
+/* Accordion and Subtable styles for Fridge Page */
+.representative-row.clickable-row {
+  cursor: pointer;
+}
+
+.representative-row.clickable-row:hover {
+  background-color: var(--surface-soft);
+}
+
+.accordion-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--muted);
+  width: 20px;
+  height: 20px;
+}
+
+.accordion-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.items-count-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  background-color: var(--surface-soft);
+  color: var(--muted);
+  border-radius: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid var(--line);
+}
+
+.toggle-details-text {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.toggle-details-text:hover {
+  color: var(--ink);
+}
+
+.subtable-container {
+  box-sizing: border-box;
+}
+
+.subtable th {
+  background: transparent !important;
+  border-bottom: 1px solid var(--line) !important;
+  color: var(--muted) !important;
+}
+
+.subtable td {
+  border-bottom: 1px solid #f0f0f0 !important;
+}
+
+.subtable tr:last-child td {
+  border-bottom: none !important;
+}
+
+.detail-row:hover {
+  background-color: transparent !important; /* prevent hover highlighting on the container row */
 }

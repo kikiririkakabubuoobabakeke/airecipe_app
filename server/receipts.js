@@ -314,10 +314,10 @@ export async function parseReceiptText({ ocrText }) {
     const items = normalizeReceiptItems(payload.items).filter((item) =>
       productLines.length
         ? productLines.some((line) =>
-            line.includes(item.name) ||
-            normalizeIngredientName(line).includes(item.name) ||
-            item.name.includes(normalizeIngredientName(line)),
-          ) || item.category !== 'その他'
+          line.includes(item.name) ||
+          normalizeIngredientName(line).includes(item.name) ||
+          item.name.includes(normalizeIngredientName(line)),
+        ) || item.category !== 'その他'
         : true,
     )
 
@@ -445,7 +445,7 @@ export async function importReceiptItemsDetail({
 }) {
   const userId = await resolveUserId(requestedUserId)
   const client = ensureSupabase()
-  
+
   const selectedItems = (Array.isArray(items) ? items : []).filter(
     (item) => item.selected !== false && item.name,
   )
@@ -460,7 +460,7 @@ export async function importReceiptItemsDetail({
     let amountStr = '1個'
     const gramVal = item.gram ? Number(item.gram) : null
     const qtyVal = item.quantity ? Number(item.quantity) : null
-    
+
     if (gramVal && gramVal > 0) {
       amountStr = `${gramVal}g`
     } else if (qtyVal && qtyVal > 0) {
@@ -487,9 +487,6 @@ export async function importReceiptItemsDetail({
     }
 
     let invExpirationDate = item.expirationDate || item.bestBeforeDate || null
-    if (!invExpirationDate) {
-      invExpirationDate = fallbackExpirationDate(item)
-    }
 
     const { data: inventoryData, error: inventoryError } = await client
       .from('inventory')

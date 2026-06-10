@@ -153,6 +153,19 @@ function mapInventoryRows(rows, language = 'ja') {
   return rows.map((row) => {
     const ingredient = row.ingredient_management
 
+    let mappedExpirationDate = null
+    if (ingredient) {
+      if (ingredient.expiration_date) {
+        mappedExpirationDate = ingredient.expiration_date
+      } else if (ingredient.best_before_date) {
+        mappedExpirationDate = null
+      } else {
+        mappedExpirationDate = row.expiration_date
+      }
+    } else {
+      mappedExpirationDate = row.expiration_date
+    }
+
     return {
       inventoryId: row.inventory_id,
       ingredientId: row.ingredient_id,
@@ -161,7 +174,7 @@ function mapInventoryRows(rows, language = 'ja') {
       quantity: row.quantity ?? 0,
       gram: row.gram ?? 0,
       amount: formatAmount(row, language),
-      expirationDate: row.expiration_date,
+      expirationDate: mappedExpirationDate,
       bestBeforeDate: ingredient?.best_before_date ?? null,
       isOpened: ingredient?.is_opened ?? false,
       status: getExpirationStatus(row.expiration_date, language),

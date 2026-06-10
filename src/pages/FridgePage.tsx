@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, Fragment, type FormEvent } from 'react'
 import { Topbar } from '../components/Topbar'
 import { Icon } from '../components/Icon'
 import { useI18n } from '../lib/useI18n'
@@ -151,6 +151,38 @@ function toMutationInput(form: IngredientFormState): InventoryMutationInput {
   }
 }
 
+type GroupedIngredient = {
+  name: string
+  category: string
+  totalQuantity: number | null
+  totalGram: number | null
+  earliestBestBeforeDate: string | null
+  earliestExpirationDate: string | null
+  items: Ingredient[]
+}
+
+function getEarliestDate(bestBefore: string | null | undefined, expiration: string | null | undefined): string | null {
+  const dates = [bestBefore, expiration].filter((d): d is string => !!d)
+  if (dates.length === 0) return null
+  dates.sort()
+  return dates[0]
+}
+
+function compareDates(a: string | null, b: string | null): number {
+  if (a && b) {
+    return a.localeCompare(b)
+  }
+  if (a) return -1
+  if (b) return 1
+  return 0
+}
+
+function compareIngredientsByDate(itemA: Ingredient, itemB: Ingredient): number {
+  const dateA = getEarliestDate(itemA.bestBeforeDate, itemA.expirationDate)
+  const dateB = getEarliestDate(itemB.bestBeforeDate, itemB.expirationDate)
+  return compareDates(dateA, dateB)
+}
+
 export function FridgePage({
   onNavigate,
   onLogout,
@@ -169,22 +201,84 @@ export function FridgePage({
   const [isSaving, setIsSaving] = useState(false)
   const [formError, setFormError] = useState('')
   const summary = useMemo(() => buildSummary(ingredients), [ingredients])
-  const groupedIngredients = useMemo(
-    () =>
-      ingredients.reduce(
-        (groups, item) => {
-          const category = item.category ?? 'その他'
-          groups[category] ??= []
-          groups[category].push(item)
-          return groups
-        },
-        {} as Record<string, Ingredient[]>,
-      ),
-    [ingredients],
-  )
+  const [expandedNames, setExpandedNames] = useState<Record<string, boolean>>({})
+
+  const toggleExpand = (name: string) => {
+    setExpandedNames((prev) => ({
+      ...prev,
+      [name]: !prev[name],
+    }))
+  }
+
+  const groupedAndSortedIngredients = useMemo(() => {
+    const catGroups: Record<string, Record<string, Ingredient[]>> = {}
+
+    for (const item of ingredients) {
+      const category = item.category ?? 'その他'
+      catGroups[category] ??= {}
+      const name = item.name
+      catGroups[category][name] ??= []
+      catGroups[category][name].push(item)
+    }
+
+    const result: Record<string, GroupedIngredient[]> = {}
+
+    for (const [category, nameGroups] of Object.entries(catGroups)) {
+      const groupedList: GroupedIngredient[] = []
+
+      for (const [name, groupItems] of Object.entries(nameGroups)) {
+        groupItems.sort(compareIngredientsByDate)
+
+        let totalQuantity: number | null = null
+        let totalGram: number | null = null
+        let earliestBestBeforeDate: string | null = null
+        let earliestExpirationDate: string | null = null
+
+        for (const item of groupItems) {
+          if (item.quantity !== undefined && item.quantity !== null) {
+            totalQuantity = (totalQuantity ?? 0) + item.quantity
+          }
+          if (item.gram !== undefined && item.gram !== null) {
+            totalGram = (totalGram ?? 0) + item.gram
+          }
+          if (item.bestBeforeDate) {
+            if (!earliestBestBeforeDate || item.bestBeforeDate < earliestBestBeforeDate) {
+              earliestBestBeforeDate = item.bestBeforeDate
+            }
+          }
+          if (item.expirationDate) {
+            if (!earliestExpirationDate || item.expirationDate < earliestExpirationDate) {
+              earliestExpirationDate = item.expirationDate
+            }
+          }
+        }
+
+        groupedList.push({
+          name,
+          category,
+          totalQuantity,
+          totalGram,
+          earliestBestBeforeDate,
+          earliestExpirationDate,
+          items: groupItems,
+        })
+      }
+
+      groupedList.sort((groupA, groupB) => {
+        const dateA = getEarliestDate(groupA.items[0].bestBeforeDate, groupA.items[0].expirationDate)
+        const dateB = getEarliestDate(groupB.items[0].bestBeforeDate, groupB.items[0].expirationDate)
+        return compareDates(dateA, dateB)
+      })
+
+      result[category] = groupedList
+    }
+
+    return result
+  }, [ingredients])
+
   const categories = useMemo(
-    () => [allCategoryKey, ...Object.keys(groupedIngredients)],
-    [groupedIngredients],
+    () => [allCategoryKey, ...Object.keys(groupedAndSortedIngredients)],
+    [groupedAndSortedIngredients],
   )
   const displayActiveCategory = categories.includes(activeCategory)
     ? activeCategory
@@ -455,13 +549,13 @@ export function FridgePage({
               {t('fridge.empty')}
             </div>
           ) : (
-            Object.entries(groupedIngredients)
+            Object.entries(groupedAndSortedIngredients)
               .filter(
                 ([category]) =>
                   displayActiveCategory === allCategoryKey ||
                   displayActiveCategory === category,
               )
-              .map(([category, items]) => (
+              .map(([category, groups]) => (
                 <div key={category} className="category-table-wrapper">
                   <h2 className="category-title">{category}</h2>
                   <div className="table-container">
@@ -477,86 +571,228 @@ export function FridgePage({
                         </tr>
                       </thead>
                       <tbody>
-                        {items.map((item, index) => {
-                          const rowKey =
-                            item.inventoryId ??
-                            item.ingredientId ??
-                            `${item.name}-${index}`
+                        {groups.map((group) => {
                           const isWarning =
-                            isNearExpiration(item.expirationDate) ||
-                            isNearExpiration(item.bestBeforeDate)
+                            isNearExpiration(group.earliestExpirationDate) ||
+                            isNearExpiration(group.earliestBestBeforeDate)
                           const unopenedText = language === 'ja' ? '未開封' : language === 'fr' ? 'Non ouvert' : 'Unopened'
+                          const representativeMemo = group.items[0].memo || group.items.find(item => item.memo)?.memo || null
+                          const isExpanded = !!expandedNames[group.name]
+                          const hasMultiple = group.items.length > 1
 
                           return (
-                            <tr key={rowKey} className={isWarning ? 'near-expiration-row' : ''}>
-                              <td className="ingredient-name-cell">
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                  <span className="ingredient-name">
-                                    {item.name}
+                            <Fragment key={group.name}>
+                              <tr
+                                className={`representative-row ${isWarning ? 'near-expiration-row' : ''} ${hasMultiple ? 'clickable-row' : ''}`}
+                                onClick={hasMultiple ? () => toggleExpand(group.name) : undefined}
+                                style={hasMultiple ? { cursor: 'pointer' } : undefined}
+                              >
+                                <td className="ingredient-name-cell">
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    {hasMultiple && (
+                                      <span className={`accordion-chevron ${isExpanded ? 'expanded' : ''}`}>
+                                        <Icon name="arrow" />
+                                      </span>
+                                    )}
+                                    <span className="ingredient-name">
+                                      {group.name}
+                                    </span>
+                                    {hasMultiple && (
+                                      <span className="items-count-badge">
+                                        {group.items.length}{language === 'ja' ? '件' : ' items'}
+                                      </span>
+                                    )}
+                                    {isWarning && (
+                                      <span className="expiry-alert">
+                                        <Icon name="bell" />
+                                        {t('fridge.summary.nearExpiration')}
+                                      </span>
+                                    )}
+                                    {!hasMultiple && (
+                                      <button
+                                        type="button"
+                                        className={`opened-badge-button ${group.items[0].isOpened ? 'opened' : 'unopened'}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          void handleToggleOpened(group.items[0])
+                                        }}
+                                        title={group.items[0].isOpened ? 'Click to mark unopened' : 'Click to mark opened'}
+                                        style={{
+                                          padding: '2px 8px',
+                                          borderRadius: '12px',
+                                          fontSize: '0.72rem',
+                                          border: 'none',
+                                          cursor: 'pointer',
+                                          transition: 'all 0.2s',
+                                          backgroundColor: group.items[0].isOpened ? 'rgba(74, 222, 128, 0.2)' : 'rgba(156, 163, 175, 0.1)',
+                                          color: group.items[0].isOpened ? '#15803d' : '#4b5563',
+                                          fontWeight: 'bold',
+                                        }}
+                                        disabled={isSaving}
+                                      >
+                                        {group.items[0].isOpened ? t('fridge.form.isOpened') : unopenedText}
+                                      </button>
+                                    )}
+                                  </div>
+                                </td>
+                                <td>
+                                  <span className="amount-text">
+                                    {formatStock(group.totalQuantity, group.totalGram, language)}
                                   </span>
-                                  {isWarning && (
-                                    <span className="expiry-alert">
-                                      <Icon name="bell" />
-                                      {t('fridge.summary.nearExpiration')}
+                                </td>
+                                <td>
+                                  <span className={isNearExpiration(group.earliestBestBeforeDate) ? 'expiration-warning' : ''}>
+                                    {formatDate(group.earliestBestBeforeDate, language)}
+                                  </span>
+                                </td>
+                                <td>
+                                  <span className={isNearExpiration(group.earliestExpirationDate) ? 'expiration-warning' : ''}>
+                                    {formatDate(group.earliestExpirationDate, language)}
+                                  </span>
+                                </td>
+                                <td>{representativeMemo ?? '-'}</td>
+                                <td>
+                                  {!hasMultiple ? (
+                                    <div className="fridge-row-actions">
+                                      <button
+                                        type="button"
+                                        className="small-button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          openEditForm(group.items[0])
+                                        }}
+                                      >
+                                        {t('fridge.action.edit')}
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="small-button danger-button"
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          void handleDeleteIngredient(group.items[0])
+                                        }}
+                                      >
+                                        {t('fridge.action.delete')}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <span className="toggle-details-text">
+                                      {isExpanded ? t('fridge.action.hideDetails') : t('fridge.action.showDetails')}
                                     </span>
                                   )}
-                                  <button
-                                    type="button"
-                                    className={`opened-badge-button ${item.isOpened ? 'opened' : 'unopened'}`}
-                                    onClick={() => void handleToggleOpened(item)}
-                                    title={item.isOpened ? 'Click to mark unopened' : 'Click to mark opened'}
-                                    style={{
-                                      padding: '2px 8px',
-                                      borderRadius: '12px',
-                                      fontSize: '0.72rem',
-                                      border: 'none',
-                                      cursor: 'pointer',
-                                      transition: 'all 0.2s',
-                                      backgroundColor: item.isOpened ? 'rgba(74, 222, 128, 0.2)' : 'rgba(156, 163, 175, 0.1)',
-                                      color: item.isOpened ? '#15803d' : '#4b5563',
-                                      fontWeight: 'bold',
-                                    }}
-                                    disabled={isSaving}
-                                  >
-                                    {item.isOpened ? t('fridge.form.isOpened') : unopenedText}
-                                  </button>
-                                </div>
-                              </td>
-                              <td>
-                                <span className="amount-text">
-                                  {formatStock(item.quantity, item.gram, language)}
-                                </span>
-                              </td>
-                              <td>
-                                <span className={isNearExpiration(item.bestBeforeDate) ? 'expiration-warning' : ''}>
-                                  {formatDate(item.bestBeforeDate, language)}
-                                </span>
-                              </td>
-                              <td>
-                                <span className={isNearExpiration(item.expirationDate) ? 'expiration-warning' : ''}>
-                                  {formatDate(item.expirationDate, language)}
-                                </span>
-                              </td>
-                              <td>{item.memo ?? '-'}</td>
-                              <td>
-                                <div className="fridge-row-actions">
-                                  <button
-                                    type="button"
-                                    className="small-button"
-                                    onClick={() => openEditForm(item)}
-                                  >
-                                    {t('fridge.action.edit')}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="small-button danger-button"
-                                    onClick={() => void handleDeleteIngredient(item)}
-                                  >
-                                    {t('fridge.action.delete')}
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
+                                </td>
+                              </tr>
+                              {hasMultiple && isExpanded && (
+                                <tr className="detail-row">
+                                  <td colSpan={6} style={{ padding: '0 0 0 20px', backgroundColor: '#fcfcfc', borderBottom: '1px solid var(--line)' }}>
+                                    <div className="subtable-container" style={{ borderLeft: '3px solid var(--accent)', paddingLeft: '12px' }}>
+                                      <table className="subtable" style={{ width: '100%', borderCollapse: 'collapse', margin: '8px 0' }}>
+                                        <thead>
+                                          <tr style={{ borderBottom: '1px solid #eee' }}>
+                                            <th style={{ padding: '8px 12px', fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'left', fontWeight: 'bold', width: '25%' }}>
+                                              {language === 'ja' ? '状態' : 'Status'}
+                                            </th>
+                                            <th style={{ padding: '8px 12px', fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'left', fontWeight: 'bold', width: '20%' }}>
+                                              {t('fridge.table.stock')}
+                                            </th>
+                                            <th style={{ padding: '8px 12px', fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'left', fontWeight: 'bold', width: '15%' }}>
+                                              {t('fridge.table.bestBefore')}
+                                            </th>
+                                            <th style={{ padding: '8px 12px', fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'left', fontWeight: 'bold', width: '15%' }}>
+                                              {t('fridge.table.expiration')}
+                                            </th>
+                                            <th style={{ padding: '8px 12px', fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'left', fontWeight: 'bold', width: '15%' }}>
+                                              {t('fridge.table.memo')}
+                                            </th>
+                                            <th style={{ padding: '8px 12px', fontSize: '0.75rem', color: 'var(--muted)', textAlign: 'left', fontWeight: 'bold', width: '10%' }}>
+                                              {t('fridge.table.actions')}
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          {group.items.map((subItem, subIndex) => {
+                                            const subRowKey = subItem.inventoryId ?? `${group.name}-sub-${subIndex}`
+                                            const subWarning = isNearExpiration(subItem.expirationDate) || isNearExpiration(subItem.bestBeforeDate)
+
+                                            return (
+                                              <tr key={subRowKey} style={{ borderBottom: subIndex === group.items.length - 1 ? 'none' : '1px solid #f0f0f0', backgroundColor: subWarning ? 'rgba(138, 74, 63, 0.02)' : 'transparent' }}>
+                                                <td style={{ padding: '10px 12px' }}>
+                                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                    <button
+                                                      type="button"
+                                                      className={`opened-badge-button ${subItem.isOpened ? 'opened' : 'unopened'}`}
+                                                      onClick={() => void handleToggleOpened(subItem)}
+                                                      title={subItem.isOpened ? 'Click to mark unopened' : 'Click to mark opened'}
+                                                      style={{
+                                                        padding: '2px 8px',
+                                                        borderRadius: '12px',
+                                                        fontSize: '0.72rem',
+                                                        border: 'none',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.2s',
+                                                        backgroundColor: subItem.isOpened ? 'rgba(74, 222, 128, 0.2)' : 'rgba(156, 163, 175, 0.1)',
+                                                        color: subItem.isOpened ? '#15803d' : '#4b5563',
+                                                        fontWeight: 'bold',
+                                                      }}
+                                                      disabled={isSaving}
+                                                    >
+                                                      {subItem.isOpened ? t('fridge.form.isOpened') : unopenedText}
+                                                    </button>
+                                                    {subWarning && (
+                                                      <span className="expiry-alert" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>
+                                                        <Icon name="bell" />
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </td>
+                                                <td style={{ padding: '10px 12px' }}>
+                                                  <span className="amount-text" style={{ fontSize: '0.85rem' }}>
+                                                    {formatStock(subItem.quantity, subItem.gram, language)}
+                                                  </span>
+                                                </td>
+                                                <td style={{ padding: '10px 12px' }}>
+                                                  <span className={isNearExpiration(subItem.bestBeforeDate) ? 'expiration-warning' : ''} style={{ fontSize: '0.85rem' }}>
+                                                    {formatDate(subItem.bestBeforeDate, language)}
+                                                  </span>
+                                                </td>
+                                                <td style={{ padding: '10px 12px' }}>
+                                                  <span className={isNearExpiration(subItem.expirationDate) ? 'expiration-warning' : ''} style={{ fontSize: '0.85rem' }}>
+                                                    {formatDate(subItem.expirationDate, language)}
+                                                  </span>
+                                                </td>
+                                                <td style={{ padding: '10px 12px', fontSize: '0.85rem', color: '#555' }}>
+                                                  {subItem.memo ?? '-'}
+                                                </td>
+                                                <td style={{ padding: '10px 12px' }}>
+                                                  <div className="fridge-row-actions">
+                                                    <button
+                                                      type="button"
+                                                      className="small-button"
+                                                      style={{ padding: '2px 8px', minHeight: '28px', fontSize: '0.75rem' }}
+                                                      onClick={() => openEditForm(subItem)}
+                                                    >
+                                                      {t('fridge.action.edit')}
+                                                    </button>
+                                                    <button
+                                                      type="button"
+                                                      className="small-button danger-button"
+                                                      style={{ padding: '2px 8px', minHeight: '28px', fontSize: '0.75rem' }}
+                                                      onClick={() => void handleDeleteIngredient(subItem)}
+                                                    >
+                                                      {t('fridge.action.delete')}
+                                                    </button>
+                                                  </div>
+                                                </td>
+                                              </tr>
+                                            )
+                                          })}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                           )
                         })}
                       </tbody>
