@@ -391,14 +391,7 @@ export function IngredientRegisterPage({
           </p>
         ) : null}
 
-        <section className="register-card" aria-labelledby="input-method-title">
-          <h2 className="register-card__title" id="input-method-title">
-            {t('ingredientRegister.methodTitle')}
-          </h2>
-          <p className="register-card__desc">
-            {t('ingredientRegister.methodDescription')}
-          </p>
-
+        <section className="register-card" aria-label={t('ingredientRegister.methodAria')}>
           <div
             className="register-method-labels register-method-labels--two"
             role="tablist"
@@ -450,10 +443,6 @@ export function IngredientRegisterPage({
             </div>
           ) : (
             <div id="panel-image" role="tabpanel">
-              <p className="register-image-lead">
-                {t('ingredientRegister.imageLead')}
-              </p>
-
               <div className="panel receipt-uploader">
                 <div className="section-heading">
                   <div>

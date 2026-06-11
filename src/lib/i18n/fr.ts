@@ -33,10 +33,6 @@ export const frMessages: Record<MessageKey, string> = {
   'home.summary.recipesLabel': 'Idées de recettes',
   'home.summary.recipesNote': 'Recettes enregistrées',
   'home.summary.recipesEmptyNote': 'Aucune recette générée pour le moment',
-  'home.summary.lowStockLabel': 'Stock faible',
-  'home.summary.lowStockNote':
-    'Ingrédients dont la quantité et les grammes sont à 0',
-  'home.summary.lowStockEmptyNote': 'Aucun ingrédient en stock faible',
   'home.summary.favoritesLabel': 'Favoris',
   'home.summary.favoritesNote': 'Calculé depuis les recettes enregistrées',
   'home.summary.aria': 'Situation du jour',
@@ -156,7 +152,6 @@ export const frMessages: Record<MessageKey, string> = {
   'settings.seasoningStrictNote': 'Utiliser uniquement les ingrédients de votre inventaire',
   'settings.avoidPlaceholder': 'Ex. : crevettes, crabe, cacahuètes, plats épicés',
   'settings.expirationNotification': 'Notifications de péremption',
-  'settings.lowStockNotification': 'Notifications de stock faible',
   'settings.expirationLeadDays': 'Notifier autant de jours avant',
   'settings.savePreferences': 'Enregistrer les préférences',
   'settings.savingPreferences': 'Enregistrement...',
@@ -381,9 +376,6 @@ export const frMessages: Record<MessageKey, string> = {
   'ingredientRegister.title': 'Enregistrement des ingrédients',
   'ingredientRegister.lead':
     'Lisez les ingrédients à ajouter au frigo depuis un ticket ou une photo.',
-  'ingredientRegister.methodTitle': 'Choisir une méthode',
-  'ingredientRegister.methodDescription':
-    'Choisissez un ticket ou une image. Pour saisir manuellement, collez du texte dans la zone OCR du ticket puis choisissez le reformatage IA.',
   'ingredientRegister.methodAria': 'Méthode d’enregistrement',
   'ingredientRegister.receipt': 'Ticket',
   'ingredientRegister.receiptIcon': 'Tk',
@@ -391,8 +383,6 @@ export const frMessages: Record<MessageKey, string> = {
   'ingredientRegister.image': 'Photo d’aliment',
   'ingredientRegister.imageIcon': 'Img',
   'ingredientRegister.imageSub': 'Lire les candidats avec l’IA',
-  'ingredientRegister.imageLead':
-    'Importez une photo d’aliments et l’IA proposera noms, catégories et quantités.',
   'ingredientRegister.foodBadge': 'Aliment',
   'ingredientRegister.shootFood': 'Photographier l’aliment',
   'ingredientRegister.foodEstimate': 'L’IA estime les noms et catégories',

@@ -442,21 +442,6 @@ export function SettingsPage({
                 <span>{t('settings.expirationNotification')}</span>
               </label>
 
-              <label className="settings-toggle">
-                <input
-                  type="checkbox"
-                  checked={preferences.notifications.lowStock}
-                  disabled={isLoadingPreferences || isSavingPreferences}
-                  onChange={(event) =>
-                    updateNotificationPreference(
-                      'lowStock',
-                      event.currentTarget.checked,
-                    )
-                  }
-                />
-                <span>{t('settings.lowStockNotification')}</span>
-              </label>
-
               <label className="settings-field settings-field--inline">
                 <span>{t('settings.expirationLeadDays')}</span>
                 <input

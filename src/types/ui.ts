@@ -109,7 +109,6 @@ export type UserPreferences = {
   seasoningMode: SeasoningMode
   notifications: {
     expiration: boolean
-    lowStock: boolean
     expirationLeadDays: number
   }
 }

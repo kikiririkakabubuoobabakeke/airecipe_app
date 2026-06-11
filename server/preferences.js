@@ -9,7 +9,6 @@ export const defaultUserPreferences = {
   seasoningMode: 'unlimited',
   notifications: {
     expiration: true,
-    lowStock: false,
     expirationLeadDays: 3,
   },
 }
@@ -74,7 +73,6 @@ export function sanitizeUserPreferences(value) {
     seasoningMode: sanitizeSeasoningMode(source.seasoningMode),
     notifications: {
       expiration: notifications.expiration !== false,
-      lowStock: notifications.lowStock === true,
       expirationLeadDays: sanitizeLeadDays(notifications.expirationLeadDays),
     },
   }

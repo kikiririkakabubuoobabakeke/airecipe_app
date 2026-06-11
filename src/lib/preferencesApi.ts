@@ -8,7 +8,6 @@ export const defaultPreferences: UserPreferences = {
   seasoningMode: 'unlimited',
   notifications: {
     expiration: true,
-    lowStock: false,
     expirationLeadDays: 3,
   },
 }

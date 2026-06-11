@@ -32,9 +32,6 @@ export const enMessages: Record<MessageKey, string> = {
   'home.summary.recipesLabel': 'Recipe ideas',
   'home.summary.recipesNote': 'Saved recipes',
   'home.summary.recipesEmptyNote': 'No recipes generated yet',
-  'home.summary.lowStockLabel': 'Low stock',
-  'home.summary.lowStockNote': 'Ingredients with both quantity and grams at 0',
-  'home.summary.lowStockEmptyNote': 'No ingredients are low on stock',
   'home.summary.favoritesLabel': 'Favorites',
   'home.summary.favoritesNote': 'Calculated from saved recipes',
   'home.summary.aria': "Today's status",
@@ -151,7 +148,6 @@ export const enMessages: Record<MessageKey, string> = {
   'settings.seasoningStrictNote': 'Only use ingredients listed in your inventory',
   'settings.avoidPlaceholder': 'Example: shrimp, crab, peanuts, spicy food',
   'settings.expirationNotification': 'Expiration notifications',
-  'settings.lowStockNotification': 'Low-stock notifications',
   'settings.expirationLeadDays': 'Notify this many days ahead',
   'settings.savePreferences': 'Save preferences',
   'settings.savingPreferences': 'Saving...',
@@ -372,9 +368,6 @@ export const enMessages: Record<MessageKey, string> = {
   'ingredientRegister.title': 'Ingredient registration',
   'ingredientRegister.lead':
     'Read ingredients to add to your fridge from a receipt or food photo.',
-  'ingredientRegister.methodTitle': 'Choose a registration method',
-  'ingredientRegister.methodDescription':
-    'Choose a receipt or image. For manual entry, paste text into the receipt text area and select AI reformatting.',
   'ingredientRegister.methodAria': 'Registration method',
   'ingredientRegister.receipt': 'Receipt',
   'ingredientRegister.receiptIcon': 'Rc',
@@ -382,8 +375,6 @@ export const enMessages: Record<MessageKey, string> = {
   'ingredientRegister.image': 'Food image',
   'ingredientRegister.imageIcon': 'Img',
   'ingredientRegister.imageSub': 'Read candidates with AI',
-  'ingredientRegister.imageLead':
-    'Upload a food photo and AI will suggest ingredient names, categories, and amounts.',
   'ingredientRegister.foodBadge': 'Food',
   'ingredientRegister.shootFood': 'Take a food photo',
   'ingredientRegister.foodEstimate': 'AI estimates names and categories',

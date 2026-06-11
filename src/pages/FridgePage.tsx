@@ -177,6 +177,41 @@ function sortCategoryNames(categories: string[], language: string) {
   )
 }
 
+function compareAggregatedIngredients(
+  left: AggregatedIngredient,
+  right: AggregatedIngredient,
+  sortMode: FridgeSortMode,
+  language: string,
+) {
+  switch (sortMode) {
+    case 'expirationAsc':
+      return (
+        getDateTime(left.nearestExpirationDate) -
+          getDateTime(right.nearestExpirationDate) ||
+        left.name.localeCompare(right.name, language)
+      )
+    case 'bestBeforeAsc':
+      return (
+        getDateTime(left.nearestBestBeforeDate) -
+          getDateTime(right.nearestBestBeforeDate) ||
+        left.name.localeCompare(right.name, language)
+      )
+    case 'quantityDesc':
+      return (
+        right.quantity - left.quantity ||
+        left.name.localeCompare(right.name, language)
+      )
+    case 'gramDesc':
+      return (
+        right.gram - left.gram ||
+        left.name.localeCompare(right.name, language)
+      )
+    case 'nameAsc':
+    default:
+      return left.name.localeCompare(right.name, language)
+  }
+}
+
 function aggregateIngredients(
   ingredients: Ingredient[],
   language: string,
@@ -308,13 +343,12 @@ export function FridgePage({
     const normalizedSearch = searchQuery.trim().toLocaleLowerCase()
     const isCategoryAll = selectedCategories.size === 0
 
-    return aggregatedIngredients
-      .filter((item) => {
-        if (!isCategoryAll && !selectedCategories.has(item.category)) {
-          return false
-        }
+    return aggregatedIngredients.filter((item) => {
+      if (!isCategoryAll && !selectedCategories.has(item.category)) {
+        return false
+      }
 
-        if (normalizedSearch) {
+      if (normalizedSearch) {
           const searchTarget = [
             item.name,
             item.category,
@@ -353,44 +387,13 @@ export function FridgePage({
           )
         }
 
-        return true
-      })
-      .toSorted((left, right) => {
-        switch (sortMode) {
-          case 'expirationAsc':
-            return (
-              getDateTime(left.nearestExpirationDate) -
-                getDateTime(right.nearestExpirationDate) ||
-              left.name.localeCompare(right.name, language)
-            )
-          case 'bestBeforeAsc':
-            return (
-              getDateTime(left.nearestBestBeforeDate) -
-                getDateTime(right.nearestBestBeforeDate) ||
-              left.name.localeCompare(right.name, language)
-            )
-          case 'quantityDesc':
-            return (
-              right.quantity - left.quantity ||
-              left.name.localeCompare(right.name, language)
-            )
-          case 'gramDesc':
-            return (
-              right.gram - left.gram ||
-              left.name.localeCompare(right.name, language)
-            )
-          case 'nameAsc':
-          default:
-            return left.name.localeCompare(right.name, language)
-        }
-      })
+      return true
+    })
   }, [
     aggregatedIngredients,
     expirationFilter,
-    language,
     searchQuery,
     selectedCategories,
-    sortMode,
   ])
   const groupedIngredients = useMemo(
     () =>
@@ -408,9 +411,15 @@ export function FridgePage({
   const sortedCategoryEntries = useMemo(
     () =>
       sortCategoryNames(Object.keys(groupedIngredients), language).map(
-        (category) => [category, groupedIngredients[category]] as const,
+        (category) =>
+          [
+            category,
+            groupedIngredients[category].toSorted((left, right) =>
+              compareAggregatedIngredients(left, right, sortMode, language),
+            ),
+          ] as const,
       ),
-    [groupedIngredients, language],
+    [groupedIngredients, language, sortMode],
   )
   const formCategories = useMemo(
     () =>

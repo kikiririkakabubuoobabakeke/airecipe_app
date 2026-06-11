@@ -30,9 +30,6 @@ export const jaMessages = {
   'home.summary.recipesLabel': 'レシピ候補',
   'home.summary.recipesNote': '保存済みのレシピ',
   'home.summary.recipesEmptyNote': 'まだ生成されていません',
-  'home.summary.lowStockLabel': '在庫不足',
-  'home.summary.lowStockNote': '数量とグラムがどちらも0の食材',
-  'home.summary.lowStockEmptyNote': '在庫不足の食材はありません',
   'home.summary.favoritesLabel': 'お気に入り',
   'home.summary.favoritesNote': '保存済みレシピから集計',
   'home.summary.aria': '今日の状況',
@@ -146,7 +143,6 @@ export const jaMessages = {
   'settings.seasoningStrictNote': '在庫にある材料だけをレシピに使用',
   'settings.avoidPlaceholder': '例: えび、かに、ピーナッツ、辛いもの',
   'settings.expirationNotification': '賞味期限の通知',
-  'settings.lowStockNotification': '在庫不足の通知',
   'settings.expirationLeadDays': '何日前に通知するか',
   'settings.savePreferences': '利用設定を保存',
   'settings.savingPreferences': '保存中...',
@@ -364,9 +360,6 @@ export const jaMessages = {
   'ingredientRegister.title': '食材登録',
   'ingredientRegister.lead':
     'レシートまたは食材写真から、冷蔵庫に追加する食材を読み取ります。',
-  'ingredientRegister.methodTitle': '登録方法を選ぶ',
-  'ingredientRegister.methodDescription':
-    'レシートもしくは画像を選択してください。手動入力はレシートのテキスト欄で入力後AIで再整形を選択することで行えます。',
   'ingredientRegister.methodAria': '登録方法',
   'ingredientRegister.receipt': 'レシート',
   'ingredientRegister.receiptIcon': 'レ',
@@ -374,8 +367,6 @@ export const jaMessages = {
   'ingredientRegister.image': '食材画像',
   'ingredientRegister.imageIcon': '画',
   'ingredientRegister.imageSub': 'AIで候補を読取',
-  'ingredientRegister.imageLead':
-    '食材写真をアップロードすると、AIが食材名・カテゴリ・数量の候補を読み取ります。',
   'ingredientRegister.foodBadge': '食材',
   'ingredientRegister.shootFood': '食材を撮影',
   'ingredientRegister.foodEstimate': 'AIが食材名・カテゴリを推定',
