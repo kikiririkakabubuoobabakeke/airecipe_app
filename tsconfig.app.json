@@ -8,9 +8,7 @@
       "DOM"
     ],
     "module": "esnext",
-    "types": [
-      "vite/client"
-    ],
+    "types": [],
     "skipLibCheck": true,
     /* Bundler mode */
     "moduleResolution": "bundler",

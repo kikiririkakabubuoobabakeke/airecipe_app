@@ -11,7 +11,7 @@ import {
 import type { AuthUser } from '../lib/authApi'
 import type { AppDestination, UserPreferences } from '../types/ui'
 
-type PreferencesFeedbackArea = 'ai' | 'preferences'
+type PreferencesFeedbackArea = 'ai' | 'preferences' | 'account'
 
 type SettingsPageProps = {
   user: AuthUser
@@ -326,6 +326,92 @@ export function SettingsPage({
               />
             </div>
 
+            <fieldset className="settings-fieldset settings-fieldset--plain">
+              <legend>{t('settings.seasoningMode')}</legend>
+              <p className="settings-section__description">
+                {t('settings.seasoningModeDescription')}
+              </p>
+              <div className="language-options" role="radiogroup">
+                {([
+                  ['unlimited', t('settings.seasoningUnlimited'), t('settings.seasoningUnlimitedNote')],
+                  ['strict', t('settings.seasoningStrict'), t('settings.seasoningStrictNote')],
+                ] as const).map(([value, label, note]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    className={`language-option ${
+                      preferences.seasoningMode === value ? 'is-active' : ''
+                    }`}
+                    role="radio"
+                    aria-checked={preferences.seasoningMode === value}
+                    disabled={isLoadingPreferences || isSavingPreferences}
+                    onClick={() => updatePreference('seasoningMode', value)}
+                  >
+                    <strong>{label}</strong>
+                    <span>{note}</span>
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+
+            <button
+              type="submit"
+              className="primary-button settings-save-button"
+              disabled={isLoadingPreferences || isSavingPreferences}
+            >
+              {isSavingPreferences
+                ? t('settings.savingPreferences')
+                : t('settings.savePreferences')}
+            </button>
+          </form>
+
+          <form
+            className="panel settings-section settings-account-card settings-preferences-form"
+            onSubmit={(event) => handlePreferencesSubmit(event, 'account')}
+          >
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">{t('settings.signedIn')}</p>
+                <h2>{t('settings.accountTitle')}</h2>
+              </div>
+            </div>
+            <p className="settings-section__description">
+              {t('settings.accountDescription')}
+            </p>
+            <dl className="settings-list">
+              <div>
+                <dt>{t('settings.email')}</dt>
+                <dd>{user.email ?? '-'}</dd>
+              </div>
+              <div>
+                <dt>{t('settings.userId')}</dt>
+                <dd className="settings-mono">{user.id}</dd>
+              </div>
+              <div>
+                <dt>{t('settings.authStatus')}</dt>
+                <dd>
+                  <span className="status-pill">{t('settings.signedIn')}</span>
+                </dd>
+              </div>
+              {user.isAdmin ? (
+                <div>
+                  <dt>{t('settings.adminStatus')}</dt>
+                  <dd>
+                    <span className="status-pill">{t('settings.adminUser')}</span>
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+            {user.isAdmin ? (
+              <button
+                type="button"
+                className="secondary-button settings-admin-button"
+                onClick={() => onNavigate?.('admin')}
+              >
+                <Icon name="message" />
+                <span>{t('settings.openAdminConsole')}</span>
+              </button>
+            ) : null}
             <fieldset className="settings-fieldset">
               <legend>{t('settings.notifications')}</legend>
               <p>{t('settings.notificationsDescription')}</p>
@@ -378,33 +464,19 @@ export function SettingsPage({
               </label>
             </fieldset>
 
-            <fieldset className="settings-fieldset settings-fieldset--plain">
-              <legend>{t('settings.seasoningMode')}</legend>
-              <p className="settings-section__description">
-                {t('settings.seasoningModeDescription')}
+            {preferencesError && preferencesFeedbackArea === 'account' ? (
+              <p className="status-message" role="alert">
+                {preferencesError === 'settings.preferencesLoadFailed'
+                  ? t('settings.preferencesLoadFailed')
+                  : preferencesError}
               </p>
-              <div className="language-options" role="radiogroup">
-                {([
-                  ['unlimited', t('settings.seasoningUnlimited'), t('settings.seasoningUnlimitedNote')],
-                  ['strict', t('settings.seasoningStrict'), t('settings.seasoningStrictNote')],
-                ] as const).map(([value, label, note]) => (
-                  <button
-                    key={value}
-                    type="button"
-                    className={`language-option ${
-                      preferences.seasoningMode === value ? 'is-active' : ''
-                    }`}
-                    role="radio"
-                    aria-checked={preferences.seasoningMode === value}
-                    disabled={isLoadingPreferences || isSavingPreferences}
-                    onClick={() => updatePreference('seasoningMode', value)}
-                  >
-                    <strong>{label}</strong>
-                    <span>{note}</span>
-                  </button>
-                ))}
-              </div>
-            </fieldset>
+            ) : null}
+
+            {preferencesMessage && preferencesFeedbackArea === 'account' ? (
+              <p className="status-message" role="status">
+                {preferencesMessage}
+              </p>
+            ) : null}
 
             <button
               type="submit"
@@ -415,52 +487,7 @@ export function SettingsPage({
                 ? t('settings.savingPreferences')
                 : t('settings.savePreferences')}
             </button>
-          </form>
 
-          <article className="panel settings-section settings-account-card">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t('settings.signedIn')}</p>
-                <h2>{t('settings.accountTitle')}</h2>
-              </div>
-            </div>
-            <p className="settings-section__description">
-              {t('settings.accountDescription')}
-            </p>
-            <dl className="settings-list">
-              <div>
-                <dt>{t('settings.email')}</dt>
-                <dd>{user.email ?? '-'}</dd>
-              </div>
-              <div>
-                <dt>{t('settings.userId')}</dt>
-                <dd className="settings-mono">{user.id}</dd>
-              </div>
-              <div>
-                <dt>{t('settings.authStatus')}</dt>
-                <dd>
-                  <span className="status-pill">{t('settings.signedIn')}</span>
-                </dd>
-              </div>
-              {user.isAdmin ? (
-                <div>
-                  <dt>{t('settings.adminStatus')}</dt>
-                  <dd>
-                    <span className="status-pill">{t('settings.adminUser')}</span>
-                  </dd>
-                </div>
-              ) : null}
-            </dl>
-            {user.isAdmin ? (
-              <button
-                type="button"
-                className="secondary-button settings-admin-button"
-                onClick={() => onNavigate?.('admin')}
-              >
-                <Icon name="message" />
-                <span>{t('settings.openAdminConsole')}</span>
-              </button>
-            ) : null}
             <div className="settings-session-row">
               <div>
                 <strong>{t('settings.logoutTitle')}</strong>
@@ -477,7 +504,7 @@ export function SettingsPage({
                   : t('settings.logoutButton')}
               </button>
             </div>
-          </article>
+          </form>
         </section>
       </main>
     </>

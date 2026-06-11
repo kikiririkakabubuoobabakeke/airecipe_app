@@ -15,9 +15,17 @@ type Summary = {
   totalCount: number
   uniqueNamesCount: number
   nearExpirationCount: number
+  expiredCount: number
 }
 
-const allCategoryKey = '__all__'
+type FridgeSortMode =
+  | 'nameAsc'
+  | 'expirationAsc'
+  | 'bestBeforeAsc'
+  | 'quantityDesc'
+  | 'gramDesc'
+
+type FridgeExpirationFilter = 'all' | 'near' | 'expired' | 'noDate'
 
 type IngredientFormState = {
   inventoryId?: number
@@ -216,6 +224,9 @@ function buildSummary(ingredients: Ingredient[]): Summary {
     nearExpirationCount: ingredients.filter((item) =>
       isNearExpiration(item.expirationDate) || isNearExpiration(item.bestBeforeDate),
     ).length,
+    expiredCount: ingredients.filter((item) =>
+      isExpired(item.expirationDate) || isExpired(item.bestBeforeDate),
+    ).length,
   }
 }
 
@@ -256,7 +267,15 @@ export function FridgePage({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState('')
-  const [activeCategory, setActiveCategory] = useState(allCategoryKey)
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortMode, setSortMode] = useState<FridgeSortMode>('nameAsc')
+  const [expirationFilter, setExpirationFilter] =
+    useState<FridgeExpirationFilter>('all')
   const [formState, setFormState] = useState<IngredientFormState>(emptyForm)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [detailIngredient, setDetailIngredient] =
@@ -273,9 +292,107 @@ export function FridgePage({
     () => aggregateIngredients(ingredients, language),
     [ingredients, language],
   )
+  const availableCategories = useMemo(
+    () =>
+      sortCategoryNames(
+        Array.from(
+          new Set(aggregatedIngredients.map((item) => item.category || 'その他')),
+        ),
+        language,
+      ),
+    [aggregatedIngredients, language],
+  )
+  const filteredAggregatedIngredients = useMemo(() => {
+    const normalizedSearch = searchQuery.trim().toLocaleLowerCase()
+    const isCategoryAll = selectedCategories.size === 0
+
+    return aggregatedIngredients
+      .filter((item) => {
+        if (!isCategoryAll && !selectedCategories.has(item.category)) {
+          return false
+        }
+
+        if (normalizedSearch) {
+          const searchTarget = [
+            item.name,
+            item.category,
+            item.memo,
+            ...item.items.flatMap((ingredient) => [
+              ingredient.name,
+              ingredient.category ?? '',
+              ingredient.memo ?? '',
+            ]),
+          ]
+            .join(' ')
+            .toLocaleLowerCase()
+
+          if (!searchTarget.includes(normalizedSearch)) {
+            return false
+          }
+        }
+
+        if (expirationFilter === 'near') {
+          return (
+            isNearExpiration(item.nearestExpirationDate) ||
+            isNearExpiration(item.nearestBestBeforeDate)
+          )
+        }
+
+        if (expirationFilter === 'expired') {
+          return item.items.some((ingredient) =>
+            isExpired(ingredient.expirationDate),
+          )
+        }
+
+        if (expirationFilter === 'noDate') {
+          return item.items.every(
+            (ingredient) =>
+              !ingredient.expirationDate && !ingredient.bestBeforeDate,
+          )
+        }
+
+        return true
+      })
+      .toSorted((left, right) => {
+        switch (sortMode) {
+          case 'expirationAsc':
+            return (
+              getDateTime(left.nearestExpirationDate) -
+                getDateTime(right.nearestExpirationDate) ||
+              left.name.localeCompare(right.name, language)
+            )
+          case 'bestBeforeAsc':
+            return (
+              getDateTime(left.nearestBestBeforeDate) -
+                getDateTime(right.nearestBestBeforeDate) ||
+              left.name.localeCompare(right.name, language)
+            )
+          case 'quantityDesc':
+            return (
+              right.quantity - left.quantity ||
+              left.name.localeCompare(right.name, language)
+            )
+          case 'gramDesc':
+            return (
+              right.gram - left.gram ||
+              left.name.localeCompare(right.name, language)
+            )
+          case 'nameAsc':
+          default:
+            return left.name.localeCompare(right.name, language)
+        }
+      })
+  }, [
+    aggregatedIngredients,
+    expirationFilter,
+    language,
+    searchQuery,
+    selectedCategories,
+    sortMode,
+  ])
   const groupedIngredients = useMemo(
     () =>
-      aggregatedIngredients.reduce(
+      filteredAggregatedIngredients.reduce(
         (groups, item) => {
           const category = item.category || 'その他'
           groups[category] ??= []
@@ -284,7 +401,7 @@ export function FridgePage({
         },
         {} as Record<string, AggregatedIngredient[]>,
       ),
-    [aggregatedIngredients],
+    [filteredAggregatedIngredients],
   )
   const sortedCategoryEntries = useMemo(
     () =>
@@ -309,13 +426,6 @@ export function FridgePage({
       ).toSorted((left, right) => compareCategoryNames(left, right, language)),
     [ingredients, language],
   )
-  const categories = useMemo(
-    () => [
-      allCategoryKey,
-      ...sortCategoryNames(Object.keys(groupedIngredients), language),
-    ],
-    [groupedIngredients, language],
-  )
   const allInventoryIds = useMemo(
     () => getInventoryIds(ingredients),
     [ingredients],
@@ -323,14 +433,16 @@ export function FridgePage({
   const expiredInventoryIds = useMemo(
     () =>
       ingredients
-        .filter((item) => isExpired(item.expirationDate))
+        .filter((item) => isExpired(item.expirationDate) || isExpired(item.bestBeforeDate))
         .map((item) => item.inventoryId)
         .filter((id): id is number => typeof id === 'number'),
     [ingredients],
   )
-  const displayActiveCategory = categories.includes(activeCategory)
-    ? activeCategory
-    : allCategoryKey
+  const isFilterActive =
+    selectedCategories.size > 0 ||
+    searchQuery.trim() !== '' ||
+    sortMode !== 'nameAsc' ||
+    expirationFilter !== 'all'
 
   function getCategoryLabel(category: string) {
     switch (category) {
@@ -347,6 +459,58 @@ export function FridgePage({
       default:
         return category
     }
+  }
+
+  function toggleCategoryFilter(category: string) {
+    setSelectedCategories((current) => {
+      const next = new Set(current)
+
+      if (next.has(category)) {
+        next.delete(category)
+      } else {
+        next.add(category)
+      }
+
+      return next
+    })
+  }
+
+  function clearFilters() {
+    setSelectedCategories(new Set())
+    setSearchQuery('')
+    setSortMode('nameAsc')
+    setExpirationFilter('all')
+    setIsCategoryDropdownOpen(false)
+  }
+
+  function resetFiltersForScroll() {
+    setSelectedCategories(new Set())
+    setSearchQuery('')
+    setSortMode('nameAsc')
+    setExpirationFilter('all')
+  }
+
+  function scrollToMarkedRow(selector: string) {
+    setTimeout(() => {
+      const targetRow = document.querySelector(selector)
+      if (targetRow) {
+        targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        targetRow.classList.add('flash-highlight')
+        setTimeout(() => {
+          targetRow.classList.remove('flash-highlight')
+        }, 2000)
+      }
+    }, 120)
+  }
+
+  function handleScrollToNearExpiration() {
+    resetFiltersForScroll()
+    scrollToMarkedRow('[data-near-expiration="true"]')
+  }
+
+  function handleScrollToExpired() {
+    resetFiltersForScroll()
+    scrollToMarkedRow('[data-expired="true"]')
   }
 
   useEffect(() => {
@@ -654,30 +818,158 @@ export function FridgePage({
                 <strong className="card-value">{summary.uniqueNamesCount}</strong>
                 <span className="card-note">{t('fridge.summary.uniqueNote')}</span>
               </div>
-              <div className="summary-card">
-                <span className="card-label">{t('fridge.summary.nearExpiration')}</span>
-                <strong className="card-value">{summary.nearExpirationCount}</strong>
+              <div
+                className={`summary-card ${summary.nearExpirationCount > 0 ? 'clickable' : ''}`}
+                onClick={summary.nearExpirationCount > 0 ? handleScrollToNearExpiration : undefined}
+                role={summary.nearExpirationCount > 0 ? 'button' : undefined}
+                tabIndex={summary.nearExpirationCount > 0 ? 0 : undefined}
+                style={{
+                  border: summary.nearExpirationCount > 0 ? '1px solid rgba(245, 158, 11, 0.45)' : undefined,
+                  background: summary.nearExpirationCount > 0 ? 'rgba(245, 158, 11, 0.04)' : undefined,
+                }}
+              >
+                <span className="card-label" style={{ color: summary.nearExpirationCount > 0 ? 'var(--warning)' : undefined }}>
+                  {t('fridge.summary.nearExpiration')}
+                </span>
+                <strong className="card-value" style={{ color: summary.nearExpirationCount > 0 ? 'var(--warning)' : undefined }}>
+                  {summary.nearExpirationCount}
+                </strong>
                 <span className="card-note">
                   {t('fridge.summary.nearExpirationNote')}
                 </span>
               </div>
+              <div
+                className={`summary-card ${summary.expiredCount > 0 ? 'clickable' : ''}`}
+                onClick={summary.expiredCount > 0 ? handleScrollToExpired : undefined}
+                role={summary.expiredCount > 0 ? 'button' : undefined}
+                tabIndex={summary.expiredCount > 0 ? 0 : undefined}
+                style={{
+                  border: summary.expiredCount > 0 ? '1px solid rgba(220, 38, 38, 0.45)' : undefined,
+                  background: summary.expiredCount > 0 ? 'rgba(220, 38, 38, 0.04)' : undefined,
+                }}
+              >
+                <span className="card-label" style={{ color: summary.expiredCount > 0 ? 'var(--danger)' : undefined }}>
+                  {t('fridge.summary.expired')}
+                </span>
+                <strong className="card-value" style={{ color: summary.expiredCount > 0 ? 'var(--danger)' : undefined }}>
+                  {summary.expiredCount}
+                </strong>
+                <span className="card-note">{t('fridge.summary.expiredNote')}</span>
+              </div>
             </section>
 
-        <div className="category-filters">
-          {categories.map((category) => (
+        <section className="fridge-filter-panel" aria-label={t('fridge.filter.title')}>
+          <div className="fridge-filter-bar">
+            <label className="fridge-search-field">
+              <span>{t('fridge.filter.search')}</span>
+              <input
+                type="search"
+                value={searchQuery}
+                placeholder={t('fridge.filter.searchPlaceholder')}
+                onChange={(event) => setSearchQuery(event.target.value)}
+              />
+            </label>
             <button
-              key={category}
               type="button"
-              className={`filter-pill ${displayActiveCategory === category ? 'active' : ''
-                }`}
-              onClick={() => setActiveCategory(category)}
+              className={`secondary-button fridge-filter-toggle ${isFilterActive ? 'is-active' : ''}`}
+              aria-expanded={isFilterOpen}
+              onClick={() => setIsFilterOpen((current) => !current)}
             >
-              {category === allCategoryKey
-                ? t('fridge.filter.all')
-                : getCategoryLabel(category)}
+              {t('fridge.filter.open')}
             </button>
-          ))}
-        </div>
+          </div>
+
+          {isFilterOpen ? (
+            <div className="fridge-filter-options">
+              <fieldset className="fridge-filter-group">
+                <legend>{t('fridge.filter.category')}</legend>
+                <div className="fridge-category-dropdown">
+                  <button
+                    type="button"
+                    className="secondary-button fridge-category-dropdown__trigger"
+                    aria-expanded={isCategoryDropdownOpen}
+                    onClick={() =>
+                      setIsCategoryDropdownOpen((current) => !current)
+                    }
+                  >
+                    <span>
+                      {selectedCategories.size === 0
+                        ? t('fridge.filter.categoryAll')
+                        : t('fridge.filter.categorySelected', {
+                            count: selectedCategories.size,
+                          })}
+                    </span>
+                  </button>
+                  {isCategoryDropdownOpen ? (
+                    <div className="fridge-category-dropdown__menu">
+                      <p>{t('fridge.filter.categoryHint')}</p>
+                      {availableCategories.map((category) => (
+                        <label key={category} className="fridge-category-option">
+                          <input
+                            type="checkbox"
+                            checked={selectedCategories.has(category)}
+                            onChange={() => toggleCategoryFilter(category)}
+                          />
+                          <span>{getCategoryLabel(category)}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              </fieldset>
+
+              <label className="fridge-filter-field">
+                <span>{t('fridge.filter.expiration')}</span>
+                <select
+                  value={expirationFilter}
+                  onChange={(event) =>
+                    setExpirationFilter(
+                      event.target.value as FridgeExpirationFilter,
+                    )
+                  }
+                >
+                  <option value="all">{t('fridge.filter.expirationAll')}</option>
+                  <option value="near">{t('fridge.filter.expirationNear')}</option>
+                  <option value="expired">
+                    {t('fridge.filter.expirationExpired')}
+                  </option>
+                  <option value="noDate">{t('fridge.filter.expirationNoDate')}</option>
+                </select>
+              </label>
+
+              <label className="fridge-filter-field">
+                <span>{t('fridge.filter.sort')}</span>
+                <select
+                  value={sortMode}
+                  onChange={(event) =>
+                    setSortMode(event.target.value as FridgeSortMode)
+                  }
+                >
+                  <option value="nameAsc">{t('fridge.filter.sortName')}</option>
+                  <option value="expirationAsc">
+                    {t('fridge.filter.sortExpiration')}
+                  </option>
+                  <option value="bestBeforeAsc">
+                    {t('fridge.filter.sortBestBefore')}
+                  </option>
+                  <option value="quantityDesc">
+                    {t('fridge.filter.sortQuantity')}
+                  </option>
+                  <option value="gramDesc">{t('fridge.filter.sortWeight')}</option>
+                </select>
+              </label>
+
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={clearFilters}
+                disabled={!isFilterActive}
+              >
+                {t('fridge.filter.clear')}
+              </button>
+            </div>
+          ) : null}
+        </section>
 
         <div className="fridge-bulk-actions">
           <button
@@ -738,13 +1030,12 @@ export function FridgePage({
             <div className="empty-state">
               {t('fridge.empty')}
             </div>
+          ) : filteredAggregatedIngredients.length === 0 ? (
+            <div className="empty-state">
+              {t('fridge.filter.noResults')}
+            </div>
           ) : (
             sortedCategoryEntries
-              .filter(
-                ([category]) =>
-                  displayActiveCategory === allCategoryKey ||
-                  displayActiveCategory === category,
-              )
               .map(([category, items]) => (
                 <div key={category} className="category-table-wrapper">
                   <h2 className="category-title">{getCategoryLabel(category)}</h2>
@@ -766,15 +1057,32 @@ export function FridgePage({
                       </thead>
                       <tbody>
                         {items.map((item) => {
+                          const isExpiredItem =
+                            isExpired(item.nearestExpirationDate) ||
+                            isExpired(item.nearestBestBeforeDate)
                           const isWarning =
-                            isNearExpiration(item.nearestExpirationDate) ||
-                            isNearExpiration(item.nearestBestBeforeDate)
+                            !isExpiredItem &&
+                            (isNearExpiration(item.nearestExpirationDate) ||
+                              isNearExpiration(item.nearestBestBeforeDate))
                           const itemIds = getInventoryIds(item.items)
                           const isSelected =
                             itemIds.length > 0 &&
                             itemIds.every((id) => selectedInventoryIds.has(id))
+                          
+                          let rowClassName = ''
+                          if (isExpiredItem) {
+                            rowClassName = 'expired-row'
+                          } else if (isWarning) {
+                            rowClassName = 'near-expiration-row'
+                          }
+
                           return (
-                            <tr key={item.key} className={isWarning ? 'near-expiration-row' : ''}>
+                            <tr
+                              key={item.key}
+                              className={rowClassName}
+                              data-expired={isExpiredItem ? "true" : undefined}
+                              data-near-expiration={isWarning ? "true" : undefined}
+                            >
                               {isSelectionMode ? (
                                 <td>
                                   <input
@@ -802,6 +1110,12 @@ export function FridgePage({
                                   >
                                     {item.name}
                                   </button>
+                                  {isExpiredItem && (
+                                    <span className="expiry-alert expired-badge">
+                                      <Icon name="bell" />
+                                      {t('fridge.summary.expired')}
+                                    </span>
+                                  )}
                                   {isWarning && (
                                     <span className="expiry-alert">
                                       <Icon name="bell" />
@@ -821,12 +1135,24 @@ export function FridgePage({
                                 </span>
                               </td>
                               <td>
-                                <span className={isNearExpiration(item.nearestBestBeforeDate) ? 'expiration-warning' : ''}>
+                                <span className={
+                                  isExpired(item.nearestBestBeforeDate)
+                                    ? 'expiration-expired'
+                                    : isNearExpiration(item.nearestBestBeforeDate)
+                                    ? 'expiration-warning'
+                                    : ''
+                                }>
                                   {formatDate(item.nearestBestBeforeDate, language)}
                                 </span>
                               </td>
                               <td>
-                                <span className={isNearExpiration(item.nearestExpirationDate) ? 'expiration-warning' : ''}>
+                                <span className={
+                                  isExpired(item.nearestExpirationDate)
+                                    ? 'expiration-expired'
+                                    : isNearExpiration(item.nearestExpirationDate)
+                                    ? 'expiration-warning'
+                                    : ''
+                                }>
                                   {formatDate(item.nearestExpirationDate, language)}
                                 </span>
                               </td>
@@ -1042,19 +1368,21 @@ export function FridgePage({
               </label>
               <label>
                 <span>{t('fridge.form.category')}</span>
-                <input
-                  list="fridge-category-options"
+                <select
                   value={formState.category}
                   onChange={(event) =>
                     updateFormField('category', event.target.value)
                   }
-                  placeholder={t('fridge.form.categorySelect')}
-                />
-                <datalist id="fridge-category-options">
+                >
+                  <option value="" disabled>
+                    {t('fridge.form.categorySelect')}
+                  </option>
                   {formCategories.map((cat) => (
-                    <option key={cat} value={cat} label={getCategoryLabel(cat)} />
+                    <option key={cat} value={cat}>
+                      {getCategoryLabel(cat)}
+                    </option>
                   ))}
-                </datalist>
+                </select>
               </label>
               <label>
                 <span>{t('fridge.form.quantity')}</span>

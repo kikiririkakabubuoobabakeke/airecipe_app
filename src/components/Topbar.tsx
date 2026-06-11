@@ -1,6 +1,11 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Icon } from './Icon'
 import { useI18n } from '../lib/useI18n'
+import {
+  fetchUserMessages,
+  markUserMessagesRead,
+  type UserMessage,
+} from '../lib/contactApi'
 import { fetchInventory } from '../lib/recipeApi'
 import { fetchPreferences, defaultPreferences } from '../lib/preferencesApi'
 import type { AppDestination, Ingredient, UserPreferences } from '../types/ui'
@@ -86,7 +91,7 @@ function getExpiringInfo(ingredient: Ingredient, leadDays: number) {
     type = 'bestBefore'
   }
 
-  if (days === null) {
+  if (days === null || days < 0) {
     return null
   }
 
@@ -105,6 +110,7 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
   const { language, t } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
+  const [userMessages, setUserMessages] = useState<UserMessage[]>([])
   const [preferences, setPreferences] = useState<UserPreferences>(defaultPreferences)
   const [viewedNotificationKeys, setViewedNotificationKeys] = useState(
     readViewedNotifications,
@@ -127,6 +133,14 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
       .catch((err) => {
         console.warn('[Topbar] Failed to fetch preferences:', err)
       })
+
+    fetchUserMessages()
+      .then((result) => {
+        setUserMessages(result.messages)
+      })
+      .catch((err) => {
+        console.warn('[Topbar] Failed to fetch messages:', err)
+      })
   }, [language])
 
   useEffect(() => {
@@ -135,9 +149,14 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
     const handleInventoryUpdated = () => {
       loadData()
     }
+    const handleMessagesUpdated = () => {
+      loadData()
+    }
     window.addEventListener('inventory-updated', handleInventoryUpdated)
+    window.addEventListener('messages-updated', handleMessagesUpdated)
     return () => {
       window.removeEventListener('inventory-updated', handleInventoryUpdated)
+      window.removeEventListener('messages-updated', handleMessagesUpdated)
     }
   }, [loadData])
 
@@ -195,6 +214,9 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
   const unreadExpirationCount = expiringIngredients.filter(
     (entry) => !viewedNotificationKeys.has(getNotificationKey(entry)),
   ).length
+  const unreadMessages = userMessages.filter((message) => !message.readAt)
+  const unreadNotificationCount =
+    unreadExpirationCount + unreadMessages.length
 
   function markNotificationsViewed(entries: ExpiringIngredientEntry[]) {
     if (entries.length === 0) {
@@ -215,6 +237,18 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
 
       if (nextIsOpen) {
         markNotificationsViewed(expiringIngredients)
+        if (unreadMessages.length > 0) {
+          void markUserMessagesRead(
+            unreadMessages.map((message) => message.messageId),
+          )
+            .then((result) => {
+              setUserMessages(result.messages)
+              window.dispatchEvent(new Event('messages-updated'))
+            })
+            .catch((error) => {
+              console.warn('[Topbar] Failed to mark messages read:', error)
+            })
+        }
       }
 
       return nextIsOpen
@@ -317,8 +351,8 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
             onClick={toggleNotifications}
           >
             <Icon name="bell" />
-            {unreadExpirationCount > 0 && (
-              <span className="notification-badge">{unreadExpirationCount}</span>
+            {unreadNotificationCount > 0 && (
+              <span className="notification-badge">{unreadNotificationCount}</span>
             )}
           </button>
 
@@ -328,35 +362,64 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
                 <h4>{t('notification.title')}</h4>
               </div>
               <div className="notifications-list">
-                {expiringIngredients.length === 0 ? (
+                {expiringIngredients.length === 0 && userMessages.length === 0 ? (
                   <div className="notifications-empty">
                     {t('notification.none')}
                   </div>
                 ) : (
-                  expiringIngredients.map(({ item, days, date }) => (
-                    <button
-                      key={item.inventoryId ?? item.name}
-                      type="button"
-                      className="notification-item"
-                      onClick={() => {
-                        onNavigate?.('fridge')
-                        setIsOpen(false)
-                      }}
-                    >
-                      <div className="notification-item__icon">
-                        <Icon name="bell" />
-                      </div>
-                      <div className="notification-item__content">
-                        <p className="notification-item__title">{item.name}</p>
-                        <p className="notification-item__desc">
-                          {t('notification.expiring', { name: item.name })}
-                        </p>
-                        <span className={`notification-item__days ${getDaysClass(days)}`}>
-                          {getDaysText(days)} ({date})
-                        </span>
-                      </div>
-                    </button>
-                  ))
+                  <>
+                    {userMessages.map((message) => (
+                      <button
+                        key={message.messageId}
+                        type="button"
+                        className="notification-item"
+                        onClick={() => {
+                          setIsOpen(false)
+                        }}
+                      >
+                        <div className="notification-item__icon notification-item__icon--message">
+                          <Icon name="message" />
+                        </div>
+                        <div className="notification-item__content">
+                          <p className="notification-item__title">
+                            {message.title}
+                          </p>
+                          <p className="notification-item__desc">
+                            {message.body}
+                          </p>
+                          {!message.readAt ? (
+                            <span className="notification-item__days info">
+                              {t('notification.unreadMessage')}
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    ))}
+                    {expiringIngredients.map(({ item, days, date }) => (
+                      <button
+                        key={item.inventoryId ?? item.name}
+                        type="button"
+                        className="notification-item"
+                        onClick={() => {
+                          onNavigate?.('fridge')
+                          setIsOpen(false)
+                        }}
+                      >
+                        <div className="notification-item__icon">
+                          <Icon name="bell" />
+                        </div>
+                        <div className="notification-item__content">
+                          <p className="notification-item__title">{item.name}</p>
+                          <p className="notification-item__desc">
+                            {t('notification.expiring', { name: item.name })}
+                          </p>
+                          <span className={`notification-item__days ${getDaysClass(days)}`}>
+                            {getDaysText(days)} ({date})
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </>
                 )}
               </div>
             </div>

@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { Icon } from '../components/Icon'
 import {
   fetchAdminContactMessages,
+  sendAdminContactReply,
   type ContactMessage,
 } from '../lib/contactApi'
 import { useI18n } from '../lib/useI18n'
@@ -13,6 +14,11 @@ type AdminConsolePageProps = {
   onNavigate?: (page: AppDestination) => void
   onLogout?: () => void | Promise<void>
 }
+
+type ReplyTarget =
+  | { type: 'single'; contactIds: string[]; subject: string }
+  | { type: 'selected'; contactIds: string[]; subject: string }
+  | { type: 'allUsers'; contactIds: []; subject: string }
 
 function formatDateTime(value: string) {
   const date = new Date(value)
@@ -38,6 +44,15 @@ export function AdminConsolePage({
   const [messages, setMessages] = useState<ContactMessage[]>([])
   const [isLoading, setIsLoading] = useState(user.isAdmin)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isSelectionMode, setIsSelectionMode] = useState(false)
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(
+    () => new Set(),
+  )
+  const [replyTarget, setReplyTarget] = useState<ReplyTarget | null>(null)
+  const [replyTitle, setReplyTitle] = useState('')
+  const [replyBody, setReplyBody] = useState('')
+  const [replyFeedback, setReplyFeedback] = useState('')
+  const [isSendingReply, setIsSendingReply] = useState(false)
 
   useEffect(() => {
     if (!user.isAdmin) {
@@ -67,6 +82,106 @@ export function AdminConsolePage({
       isMounted = false
     }
   }, [t, user.isAdmin])
+
+  function openReplyModal(target: ReplyTarget) {
+    const title =
+      target.type === 'allUsers'
+        ? t('admin.allUsersReplyTitle')
+        : target.type === 'selected'
+          ? ''
+          : t('message.replyTitle', { subject: target.subject })
+
+    setReplyTarget(target)
+    setReplyTitle(title)
+    setReplyBody('')
+    setReplyFeedback('')
+  }
+
+  function closeReplyModal() {
+    if (isSendingReply) {
+      return
+    }
+
+    setReplyTarget(null)
+    setReplyFeedback('')
+  }
+
+  function toggleSelectedContact(contactId: string, selected: boolean) {
+    setSelectedContactIds((current) => {
+      const next = new Set(current)
+
+      if (selected) {
+        next.add(contactId)
+      } else {
+        next.delete(contactId)
+      }
+
+      if (!selected && next.size === 0) {
+        setIsSelectionMode(false)
+      }
+
+      return next
+    })
+  }
+
+  function handleSelectAllContacts() {
+    setSelectedContactIds(new Set(messages.map((message) => message.contactId)))
+    setIsSelectionMode(true)
+  }
+
+  function handleExitSelection() {
+    setSelectedContactIds(new Set())
+    setIsSelectionMode(false)
+  }
+
+  async function handleReplySubmit(event: FormEvent) {
+    event.preventDefault()
+
+    if (!replyTarget) {
+      return
+    }
+
+    const title = replyTitle.trim()
+    const body = replyBody.trim()
+
+    if (!body) {
+      setReplyFeedback(t('admin.replyRequired'))
+      return
+    }
+
+    setIsSendingReply(true)
+    setReplyFeedback('')
+
+    try {
+      await sendAdminContactReply({
+        contactIds: replyTarget.contactIds,
+        target: replyTarget.type === 'allUsers' ? 'allUsers' : 'contacts',
+        title,
+        body,
+      })
+      if (replyTarget.type !== 'allUsers') {
+        const repliedIds = new Set(replyTarget.contactIds)
+        setMessages((current) =>
+          current.map((item) =>
+            repliedIds.has(item.contactId)
+              ? { ...item, status: 'replied', updatedAt: new Date().toISOString() }
+              : item,
+          ),
+        )
+      }
+      setSelectedContactIds(new Set())
+      setIsSelectionMode(false)
+      setReplyFeedback(t('admin.replySuccess'))
+      setReplyTarget(null)
+    } catch (error) {
+      console.error('[vite] Admin contact reply failed:', error)
+      setReplyFeedback(
+        error instanceof Error ? error.message : t('admin.replyFailed'),
+      )
+    } finally {
+      setIsSendingReply(false)
+    }
+  }
 
   return (
     <>
@@ -123,10 +238,111 @@ export function AdminConsolePage({
               <p className="settings-note">{t('admin.empty')}</p>
             ) : null}
 
+            <div className="fridge-bulk-actions admin-bulk-actions">
+              {isSelectionMode ? (
+                <>
+                  <span>
+                    {t('admin.selectedCount', {
+                      count: selectedContactIds.size,
+                    })}
+                  </span>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    disabled={selectedContactIds.size === 0}
+                    onClick={() =>
+                      openReplyModal({
+                        type: 'selected',
+                        contactIds: Array.from(selectedContactIds),
+                        subject: t('admin.selectedSubject'),
+                      })
+                    }
+                  >
+                    {t('admin.replySelected')}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button"
+                    onClick={handleSelectAllContacts}
+                    disabled={messages.length === 0}
+                  >
+                    {t('admin.selectAll')}
+                  </button>
+                  <button
+                    type="button"
+                    className="secondary-button fridge-selection-cancel"
+                    onClick={handleExitSelection}
+                  >
+                    {t('fridge.selection.exit')}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={() => setIsSelectionMode(true)}
+                  disabled={messages.length === 0}
+                >
+                  {t('fridge.selection.select')}
+                </button>
+              )}
+              <button
+                type="button"
+                className="primary-button"
+                onClick={() =>
+                  openReplyModal({
+                    type: 'allUsers',
+                    contactIds: [],
+                    subject: t('admin.allUsersSubject'),
+                  })
+                }
+              >
+                {t('admin.replyAllUsers')}
+              </button>
+            </div>
+
             <div className="admin-message-list">
               {messages.map((message) => (
-                <article className="admin-message-card" key={message.contactId}>
+                <article
+                  className="admin-message-card admin-message-card--clickable"
+                  key={message.contactId}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                    openReplyModal({
+                      type: 'single',
+                      contactIds: [message.contactId],
+                      subject: message.subject,
+                    })
+                  }
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault()
+                      openReplyModal({
+                        type: 'single',
+                        contactIds: [message.contactId],
+                        subject: message.subject,
+                      })
+                    }
+                  }}
+                >
                   <div className="admin-message-card__header">
+                    {isSelectionMode ? (
+                      <input
+                        type="checkbox"
+                        aria-label={t('admin.selectMessage', {
+                          subject: message.subject,
+                        })}
+                        checked={selectedContactIds.has(message.contactId)}
+                        onClick={(event) => event.stopPropagation()}
+                        onChange={(event) =>
+                          toggleSelectedContact(
+                            message.contactId,
+                            event.currentTarget.checked,
+                          )
+                        }
+                      />
+                    ) : null}
                     <div>
                       <h3>{message.subject}</h3>
                       <p>
@@ -137,17 +353,93 @@ export function AdminConsolePage({
                     <span className="status-pill">{message.status}</span>
                   </div>
                   <p className="admin-message-card__body">{message.message}</p>
-                  {message.pageUrl ? (
-                    <p className="admin-message-card__meta">
-                      {t('admin.pageUrl')}: {message.pageUrl}
-                    </p>
-                  ) : null}
                 </article>
               ))}
             </div>
           </section>
         )}
       </main>
+
+      {replyTarget ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeReplyModal()
+            }
+          }}
+        >
+          <form
+            className="cook-modal admin-reply-modal"
+            aria-labelledby="admin-reply-title"
+            aria-modal="true"
+            role="dialog"
+            onClick={(event) => event.stopPropagation()}
+            onSubmit={handleReplySubmit}
+          >
+            <p className="eyebrow">{t('admin.replyLabel')}</p>
+            <h2 id="admin-reply-title">
+              {replyTarget.type === 'allUsers'
+                ? t('admin.replyAllUsers')
+                : replyTarget.type === 'selected'
+                  ? t('admin.replySelected')
+                  : replyTarget.subject}
+            </h2>
+            <p className="settings-note">
+              {replyTarget.type === 'allUsers'
+                ? t('admin.replyAllUsersDescription')
+                : t('admin.replyTargetCount', {
+                    count: replyTarget.contactIds.length,
+                  })}
+            </p>
+
+            <label className="settings-field">
+              <span>{t('admin.replyTitleLabel')}</span>
+              <input
+                value={replyTitle}
+                onChange={(event) => setReplyTitle(event.target.value)}
+                disabled={isSendingReply}
+              />
+            </label>
+
+            <label className="settings-field">
+              <span>{t('admin.replyBodyLabel')}</span>
+              <textarea
+                rows={6}
+                value={replyBody}
+                placeholder={t('admin.replyPlaceholder')}
+                disabled={isSendingReply}
+                onChange={(event) => setReplyBody(event.target.value)}
+              />
+            </label>
+
+            {replyFeedback ? (
+              <p className="status-message" role="alert">
+                {replyFeedback}
+              </p>
+            ) : null}
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeReplyModal}
+                disabled={isSendingReply}
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                type="submit"
+                className="primary-button"
+                disabled={isSendingReply}
+              >
+                {isSendingReply ? t('admin.replySending') : t('admin.replySubmit')}
+              </button>
+            </div>
+          </form>
+        </div>
+      ) : null}
     </>
   )
 }

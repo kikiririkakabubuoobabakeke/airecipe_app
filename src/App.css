@@ -760,7 +760,7 @@ button:disabled {
 }
 
 .favorite-button.is-active {
-  border-color: rgba(138, 74, 63, 0.26);
+  border-color: rgba(220, 38, 38, 0.26);
   color: var(--danger);
   background: #fffcfb;
 }
@@ -1277,16 +1277,21 @@ button:disabled {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+  align-items: stretch;
 }
 
 .settings-section {
+  display: grid;
   align-content: start;
+  gap: 18px;
+  height: 100%;
 }
 
 .settings-section__description {
-  margin: 0 0 18px;
+  margin: 0;
   color: var(--muted);
   font-size: 14px;
+  line-height: 1.7;
 }
 
 .settings-list {
@@ -1373,7 +1378,7 @@ button:disabled {
 }
 
 .settings-note {
-  margin: 14px 0 0;
+  margin: 0;
   font-weight: 800;
 }
 
@@ -1392,7 +1397,7 @@ button:disabled {
 
 .settings-preferences-form {
   display: grid;
-  gap: 14px;
+  gap: 18px;
 }
 
 .settings-field {
@@ -1482,6 +1487,149 @@ button:disabled {
   justify-self: start;
 }
 
+.settings-admin-button {
+  margin-top: 0;
+}
+
+.settings-account-card {
+  display: grid;
+  gap: 18px;
+}
+
+.settings-account-card .settings-section__description,
+.settings-account-card .settings-admin-button {
+  margin-bottom: 0;
+}
+
+.settings-account-card .settings-session-row {
+  margin-top: 0;
+}
+
+.contact-page,
+.admin-page {
+  max-width: 1040px;
+}
+
+.contact-form {
+  max-width: 760px;
+}
+
+.contact-form__actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.admin-console {
+  display: grid;
+  gap: 18px;
+}
+
+.admin-message-list {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-message-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+
+.admin-message-card--clickable {
+  cursor: pointer;
+}
+
+.admin-message-card--clickable:hover,
+.admin-message-card--clickable:focus-visible {
+  border-color: var(--subtle);
+  background: var(--surface-soft);
+  outline: none;
+}
+
+.admin-message-card__header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.admin-message-card__header h3 {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 1.02rem;
+}
+
+.admin-message-card__header p,
+.admin-message-card__meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.admin-message-card__body {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.admin-message-card__meta {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
+
+.admin-reply-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.admin-reply-form label {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.admin-reply-form textarea {
+  width: 100%;
+  min-height: 110px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.admin-reply-form .settings-save-button {
+  justify-self: start;
+}
+
+.admin-bulk-actions {
+  margin: 0;
+}
+
+.admin-reply-modal {
+  width: min(620px, 100%);
+}
+
+.admin-reply-modal .settings-field {
+  margin-top: 12px;
+}
+
+.admin-reply-modal .settings-field input,
+.admin-reply-modal .settings-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .settings-session-row {
   display: flex;
   align-items: center;
@@ -1491,7 +1639,7 @@ button:disabled {
 
 .danger-button {
   flex: 0 0 auto;
-  border-color: rgba(138, 74, 63, 0.22);
+  border-color: rgba(220, 38, 38, 0.24);
   color: var(--danger);
   background: #fffcfb;
 }
@@ -1814,18 +1962,128 @@ button:disabled {
   font-size: 12px;
 }
 
-/* Summary Card Modifier for Danger */
-.fridge-summary .summary-card.near-expiration {
-  border-color: #f5c4a8;
-  background: linear-gradient(180deg, #fff8f5 0%, #fde8e6 100%);
+.fridge-filter-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 24px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
 }
 
-.fridge-summary .summary-card.near-expiration .card-value {
-  color: var(--danger);
+.fridge-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
 }
 
-.fridge-summary .summary-card.near-expiration .card-label {
-  color: #b83830;
+.fridge-search-field,
+.fridge-filter-field {
+  display: grid;
+  gap: 7px;
+}
+
+.fridge-search-field span,
+.fridge-filter-field span,
+.fridge-filter-group legend {
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.fridge-search-field input,
+.fridge-filter-field select {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+}
+
+.fridge-filter-toggle.is-active {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.fridge-filter-options {
+  display: grid;
+  grid-template-columns: minmax(180px, 240px) minmax(180px, 220px) minmax(180px, 220px) auto;
+  gap: 14px;
+  align-items: end;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.fridge-filter-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.fridge-filter-group p {
+  margin: 4px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.fridge-category-dropdown {
+  position: relative;
+}
+
+.fridge-category-dropdown__trigger {
+  width: 100%;
+  min-height: 42px;
+  justify-content: space-between;
+}
+
+.fridge-category-dropdown__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  display: grid;
+  gap: 4px;
+  width: min(280px, calc(100vw - 48px));
+  max-height: 280px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.fridge-category-dropdown__menu p {
+  margin: 0 0 6px;
+}
+
+.fridge-category-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fridge-category-option:hover {
+  background: var(--surface-soft);
+}
+
+.fridge-category-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ink);
 }
 
 /* Category Filters */
@@ -1836,8 +2094,15 @@ button:disabled {
   margin-bottom: 28px;
 }
 
-.fridge-container .filter-pill {
-  display: inline-flex;
+.fridge-filter-panel .category-filters {
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+}
+
+.fridge-bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   padding: 8px 14px 8px 10px;
@@ -1864,11 +2129,27 @@ button:disabled {
   font-weight: 900;
 }
 
-.fridge-container .filter-pill:hover {
-  border-color: #e8a87a;
-  color: var(--accent-dark);
-  background: var(--surface-soft);
-  transform: translateY(-1px);
+@media (max-width: 920px) {
+  .fridge-filter-bar,
+  .fridge-filter-options {
+    grid-template-columns: 1fr;
+  }
+
+  .fridge-filter-options {
+    align-items: stretch;
+  }
+}
+
+.filter-pill {
+  padding: 8px 20px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  transition: all 0.2s ease;
+  cursor: pointer;
 }
 
 .fridge-container .filter-pill.active {
@@ -2036,8 +2317,23 @@ button:disabled {
   font-weight: 700;
 }
 
-.ingredient-name-row {
-  display: flex;
+.expiration-warning {
+  color: var(--warning);
+  font-weight: bold;
+}
+
+.ingredient-name {
+  color: var(--ink);
+}
+
+.expiry-alert {
+  color: var(--warning);
+  font-weight: bold;
+  background: rgba(245, 158, 11, 0.14);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
@@ -3054,8 +3350,14 @@ button:disabled {
   flex-shrink: 0;
 }
 
+.notification-item__icon--message {
+  background-color: rgba(74, 91, 122, 0.08);
+  color: var(--ink);
+}
+
 .notification-item__content {
   flex-grow: 1;
+  min-width: 0;
 }
 
 .notification-item__title {
@@ -3070,6 +3372,10 @@ button:disabled {
   margin: 0 0 6px 0;
   font-size: 12px;
   line-height: 1.3;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .notification-item__days {
@@ -3081,13 +3387,13 @@ button:disabled {
 }
 
 .notification-item__days.urgent {
-  background-color: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
+  background-color: rgba(220, 38, 38, 0.12);
+  color: var(--danger);
 }
 
 .notification-item__days.warning {
   background-color: rgba(245, 158, 11, 0.12);
-  color: #d97706;
+  color: var(--warning);
 }
 
 .notification-item__days.info {
@@ -3102,97 +3408,44 @@ button:disabled {
   font-size: 13px;
 }
 
-/* Master merge: fridge bulk actions & ingredient detail */
-.fridge-bulk-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  margin: -10px 0 24px;
+/* Expired row and badge styles */
+.fridge-table tr.expired-row {
+  background-color: rgba(220, 38, 38, 0.04);
+}
+.fridge-table tr.expired-row:hover {
+  background-color: rgba(220, 38, 38, 0.08);
 }
 
-.fridge-selection-cancel {
-  margin-left: auto;
+.expiry-alert.expired-badge {
+  color: var(--danger);
+  background: rgba(220, 38, 38, 0.12);
+  border: 1px solid rgba(220, 38, 38, 0.22);
 }
 
-.ingredient-detail-modal {
-  width: min(760px, 100%);
-  max-height: min(86vh, 760px);
-  overflow: auto;
+.expiration-expired {
+  color: var(--danger);
+  font-weight: 900;
 }
 
-.ingredient-detail-summary {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 14px;
+/* Flash highlight animation for scrolling target */
+@keyframes row-flash {
+  0% {
+    background-color: rgba(245, 158, 11, 0.4);
+  }
+  100% {
+    background-color: transparent;
+  }
 }
 
-.ingredient-detail-total {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
+.fridge-table tr.flash-highlight {
+  animation: row-flash 2s ease-out;
 }
 
-.ingredient-detail-list {
-  display: grid;
-  gap: 12px;
-  margin-top: 18px;
+/* Make summary cards clickable */
+.summary-card.clickable {
+  cursor: pointer;
+  user-select: none;
 }
-
-.ingredient-detail-item {
-  display: grid;
-  gap: 12px;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-}
-
-.fridge-table.is-selecting th:nth-child(1),
-.fridge-table.is-selecting td:nth-child(1) {
-  width: 48px;
-  min-width: 48px;
-  padding-right: 6px;
-  text-align: center;
-}
-
-@media (max-width: 700px) {
-  .fridge-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 12px;
-  }
-
-  .fridge-header-actions {
-    width: 100%;
-  }
-
-  .back-home-button {
-    width: 100%;
-  }
-
-  .fridge-summary {
-    grid-template-columns: 1fr;
-  }
-
-  .fridge-table th,
-  .fridge-table td {
-    padding: 12px 14px;
-    font-size: 13px;
-  }
-
-  .ingredient-form-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .ingredient-detail-total,
-  .ingredient-detail-item dl {
-    grid-template-columns: 1fr;
-  }
-
-  .fridge-row-actions .small-button {
-    width: auto;
-  }
+.summary-card.clickable:active {
+  transform: scale(0.98);
 }

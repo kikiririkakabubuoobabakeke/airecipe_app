@@ -45,6 +45,9 @@ import {
 } from './preferences.js'
 import {
   getContactMessagesForAdmin,
+  getMessagesForUser,
+  markMessagesReadForUser,
+  sendContactReplyForAdmin,
   submitContactMessageForUser,
 } from './contact.js'
 import { checkSupabaseConnection } from './supabase.js'
@@ -391,6 +394,24 @@ export async function handleApiRequest(request, response) {
 
   if (request.method === 'GET' && url.pathname === '/api/admin/contact-messages') {
     await handleAdminContactMessages(authUser, response)
+    return
+  }
+
+  if (
+    request.method === 'POST' &&
+    url.pathname === '/api/admin/contact-messages/reply'
+  ) {
+    await handleAdminContactReply(request, response, authUser)
+    return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/messages') {
+    await handleUserMessages(authUser.id, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/messages/read') {
+    await handleUserMessagesRead(request, response, authUser.id)
     return
   }
 
@@ -979,6 +1000,66 @@ async function handleAdminContactMessages(user, response) {
     sendJson(response, statusCode, {
       ok: false,
       message,
+    })
+  }
+}
+
+async function handleAdminContactReply(request, response, user) {
+  try {
+    const body = await readJsonBody(request)
+    const userMessages = await sendContactReplyForAdmin(user, body)
+
+    sendJson(response, 200, {
+      ok: true,
+      userMessages,
+    })
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Admin contact reply failed'
+    const statusCode = /Admin permission/.test(message)
+      ? 403
+      : /required|missing/.test(message)
+        ? 400
+        : 500
+
+    sendJson(response, statusCode, {
+      ok: false,
+      message,
+    })
+  }
+}
+
+async function handleUserMessages(userId, response) {
+  try {
+    const messages = await getMessagesForUser(userId)
+
+    sendJson(response, 200, {
+      ok: true,
+      messages,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Messages request failed',
+    })
+  }
+}
+
+async function handleUserMessagesRead(request, response, userId) {
+  try {
+    const body = await readJsonBody(request)
+    const messages = await markMessagesReadForUser(userId, body?.messageIds)
+
+    sendJson(response, 200, {
+      ok: true,
+      messages,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Messages update failed',
     })
   }
 }
