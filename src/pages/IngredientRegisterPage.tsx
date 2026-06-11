@@ -414,9 +414,7 @@ export function IngredientRegisterPage({
               }`}
               onClick={() => selectMethod('receipt')}
             >
-              <span className="register-method-label__icon" aria-hidden="true">
-                {t('ingredientRegister.receiptIcon')}
-              </span>
+              <img className="register-method-label__icon" src="/receipt.png" alt="" aria-hidden="true" />
               {t('ingredientRegister.receipt')}
               <span className="register-method-label__sub">
                 {t('ingredientRegister.receiptSub')}
@@ -432,9 +430,7 @@ export function IngredientRegisterPage({
               }`}
               onClick={() => selectMethod('image')}
             >
-              <span className="register-method-label__icon" aria-hidden="true">
-                {t('ingredientRegister.imageIcon')}
-              </span>
+              <img className="register-method-label__icon" src="/camera.png" alt="" aria-hidden="true" />
               {t('ingredientRegister.image')}
               <span className="register-method-label__sub">
                 {t('ingredientRegister.imageSub')}

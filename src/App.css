@@ -2838,15 +2838,12 @@ button:disabled {
   place-items: center;
   border-radius: 8px;
   background: var(--surface-soft);
-  color: var(--ink);
-  font-size: 15px;
-  line-height: 1;
-  font-weight: 900;
+  object-fit: contain;
+  padding: 6px;
 }
 
 .register-method-label.is-active .register-method-label__icon {
   background: rgba(255, 255, 255, 0.14);
-  color: #fff;
 }
 
 .register-method-label__sub {
