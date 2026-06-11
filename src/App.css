@@ -132,8 +132,8 @@
 
 .brand strong {
   font-family:
-    'Hiragino Maru Gothic ProN', 'Hiragino Sans', 'Yu Gothic', 'Meiryo',
-    system-ui, sans-serif;
+    'Noto Sans JP', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+    'Segoe UI', sans-serif;
   font-size: 19px;
   font-weight: 900;
   line-height: 1.1;
