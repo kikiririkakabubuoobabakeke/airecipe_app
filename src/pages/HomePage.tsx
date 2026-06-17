@@ -33,6 +33,18 @@ type HomePageProps = {
   onShowFavorites?: () => void
 }
 
+type HomeData = {
+  ingredients: Ingredient[]
+  recipes: Recipe[]
+  preferences: UserPreferences
+}
+
+type HomeLoadingState = {
+  ingredients: boolean
+  recipes: boolean
+  preferences: boolean
+}
+
 function isNearExpiration(ingredient: Ingredient, leadDays = 3) {
   if (!ingredient.expirationDate) {
     return false
@@ -58,6 +70,7 @@ function buildSummaryItems(
   recipes: Recipe[],
   preferences: UserPreferences,
   t: TranslateFn,
+  loadingState: HomeLoadingState,
 ) {
   const leadDays = preferences.notifications.expiration
     ? preferences.notifications.expirationLeadDays
@@ -77,6 +90,7 @@ function buildSummaryItems(
       note: ingredients.length
         ? t('home.summary.ingredientsNote')
         : t('home.summary.ingredientsEmptyNote'),
+      isLoading: loadingState.ingredients,
     },
     {
       label: t('home.summary.nearExpirationLabel'),
@@ -85,6 +99,7 @@ function buildSummaryItems(
         nearExpirationCount > 0
           ? t('home.summary.nearExpirationNote', { days: leadDays })
           : t('home.summary.nearExpirationEmptyNote'),
+      isLoading: loadingState.ingredients || loadingState.preferences,
     },
     {
       label: t('home.summary.recipesLabel'),
@@ -92,11 +107,13 @@ function buildSummaryItems(
       note: recipes.length
         ? t('home.summary.recipesNote')
         : t('home.summary.recipesEmptyNote'),
+      isLoading: loadingState.recipes,
     },
     {
       label: t('home.summary.favoritesLabel'),
       value: String(favoriteCount),
       note: t('home.summary.favoritesNote'),
+      isLoading: loadingState.recipes,
     },
   ]
 }
@@ -109,7 +126,11 @@ export function HomePage({
   const { language, t } = useI18n()
   const [ingredients, setIngredients] = useState<Ingredient[]>([])
   const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [loadingState, setLoadingState] = useState<HomeLoadingState>({
+    ingredients: true,
+    recipes: true,
+    preferences: true,
+  })
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCooking, setIsCooking] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
@@ -121,8 +142,8 @@ export function HomePage({
   const toastTimerRef = useRef<number | null>(null)
   const secondaryFeatures = useMemo(() => getSecondaryFeatures(t), [t])
   const currentSummaryItems = useMemo(
-    () => buildSummaryItems(ingredients, recipes, preferences, t),
-    [ingredients, preferences, recipes, t],
+    () => buildSummaryItems(ingredients, recipes, preferences, t, loadingState),
+    [ingredients, loadingState, preferences, recipes, t],
   )
 
   useEffect(() => {
@@ -150,63 +171,111 @@ export function HomePage({
     let isMounted = true
     const cacheKey = `home:${language}`
 
-    const cached = getCache<{
-      ingredients: Ingredient[]
-      recipes: Recipe[]
-      preferences: UserPreferences
-    }>(cacheKey)
+    const cached = getCache<HomeData>(cacheKey)
+    let nextIngredients = cached?.ingredients ?? []
+    let nextRecipes = cached?.recipes ?? []
+    let nextPreferences = cached?.preferences ?? defaultPreferences
+
     if (cached) {
       setIngredients(cached.ingredients)
       setRecipes(cached.recipes)
       setPreferences(cached.preferences)
-      setIsLoading(false)
+      setLoadingState({
+        ingredients: false,
+        recipes: false,
+        preferences: false,
+      })
+    } else {
+      setIngredients([])
+      setRecipes([])
+      setPreferences(defaultPreferences)
+      setLoadingState({
+        ingredients: true,
+        recipes: true,
+        preferences: true,
+      })
     }
 
-    Promise.allSettled([
-      fetchInventory(language),
-      fetchSavedRecipes(language),
-      fetchPreferences(),
-    ]).then(([inventoryResult, recipesResult, preferencesResult]) => {
-      if (!isMounted) {
-        return
-      }
-
-      if (inventoryResult.status === 'fulfilled') {
-        setIngredients(inventoryResult.value.inventory)
-      } else {
-        console.warn('[vite] Inventory fetch failed:', inventoryResult.reason)
-        if (!cached) {
-          const error = inventoryResult.reason
+    const inventoryRequest = fetchInventory(language)
+      .then((result) => {
+        nextIngredients = result.inventory
+        setCache(`inventory:${language}`, result.inventory)
+        if (isMounted) {
+          setIngredients(result.inventory)
+        }
+      })
+      .catch((error) => {
+        console.warn('[vite] Inventory fetch failed:', error)
+        if (isMounted && !cached) {
           setStatusMessage(
             error instanceof Error
               ? error.message
               : t('home.status.inventoryFetchFailed'),
           )
         }
-      }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingState((current) => ({
+            ...current,
+            ingredients: false,
+          }))
+        }
+      })
 
-      if (recipesResult.status === 'fulfilled') {
-        setRecipes(recipesResult.value.recipes)
-      } else {
-        console.warn('[vite] Saved recipes fetch failed:', recipesResult.reason)
-      }
+    const recipesRequest = fetchSavedRecipes(language)
+      .then((result) => {
+        nextRecipes = result.recipes
+        setCache(`cooking-history:${language}`, result.recipes)
+        if (isMounted) {
+          setRecipes(result.recipes)
+        }
+      })
+      .catch((error) => {
+        console.warn('[vite] Saved recipes fetch failed:', error)
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingState((current) => ({
+            ...current,
+            recipes: false,
+          }))
+        }
+      })
 
-      if (preferencesResult.status === 'fulfilled') {
-        setPreferences(preferencesResult.value.preferences)
-      } else {
-        console.warn('[vite] Preferences fetch failed:', preferencesResult.reason)
-      }
+    const preferencesRequest = fetchPreferences()
+      .then((result) => {
+        nextPreferences = result.preferences
+        if (isMounted) {
+          setPreferences(result.preferences)
+        }
+      })
+      .catch((error) => {
+        console.warn('[vite] Preferences fetch failed:', error)
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoadingState((current) => ({
+            ...current,
+            preferences: false,
+          }))
+        }
+      })
 
-      if (inventoryResult.status === 'fulfilled' && recipesResult.status === 'fulfilled' && preferencesResult.status === 'fulfilled') {
+    void Promise.all([inventoryRequest, recipesRequest, preferencesRequest]).then(
+      () => {
         setCache(cacheKey, {
-          ingredients: inventoryResult.value.inventory,
-          recipes: recipesResult.value.recipes,
-          preferences: preferencesResult.value.preferences,
+          ingredients: nextIngredients,
+          recipes: nextRecipes,
+          preferences: nextPreferences,
         })
-      }
-
-      setIsLoading(false)
-    })
+        setCache(`recipe-generate:${language}`, {
+          ingredients: nextIngredients,
+          recipes: nextRecipes,
+          preferences: nextPreferences,
+        })
+      },
+    )
 
     return () => {
       isMounted = false
@@ -336,30 +405,25 @@ export function HomePage({
           </p>
         ) : null}
 
-        {isLoading ? (
-          <div className="fridge-loading">
-            <div className="loading-spinner" />
-            <p>{t('common.loading')}</p>
-          </div>
-        ) : (
-          <div className="content-appear">
-            <SummaryGrid items={currentSummaryItems} />
+        <div className="content-appear">
+          <SummaryGrid items={currentSummaryItems} />
 
-            <div className="dashboard-grid">
-              <IngredientsPanel
-                ingredients={ingredients}
-                onAddIngredient={() => onNavigate?.('ingredient-register')}
-              />
-              <RecipesPanel
-                recipes={recipes}
-                isGenerating={isGenerating}
-                onGenerateRecipe={handleGenerateRecipe}
-                onSelectRecipe={onSelectRecipe}
-                onCookRecipe={openCookedDialog}
-              />
-            </div>
+          <div className="dashboard-grid">
+            <IngredientsPanel
+              ingredients={ingredients}
+              isLoading={loadingState.ingredients}
+              onAddIngredient={() => onNavigate?.('ingredient-register')}
+            />
+            <RecipesPanel
+              recipes={recipes}
+              isLoading={loadingState.recipes}
+              isGenerating={isGenerating}
+              onGenerateRecipe={handleGenerateRecipe}
+              onSelectRecipe={onSelectRecipe}
+              onCookRecipe={openCookedDialog}
+            />
           </div>
-        )}
+        </div>
 
         <section
           className="secondary-section"

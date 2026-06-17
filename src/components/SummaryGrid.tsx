@@ -5,6 +5,7 @@ type SummaryItem = {
   label: string
   value: string
   note: string
+  isLoading?: boolean
 }
 
 export const SummaryGrid = memo(function SummaryGrid({
@@ -17,10 +18,10 @@ export const SummaryGrid = memo(function SummaryGrid({
   return (
     <section className="summary-grid" aria-label={t('home.summary.aria')}>
       {items.map((item) => (
-        <article key={item.label}>
+        <article key={item.label} aria-busy={item.isLoading || undefined}>
           <span>{item.label}</span>
-          <strong>{item.value}</strong>
-          <small>{item.note}</small>
+          <strong>{item.isLoading ? '...' : item.value}</strong>
+          <small>{item.isLoading ? t('common.loading') : item.note}</small>
         </article>
       ))}
     </section>

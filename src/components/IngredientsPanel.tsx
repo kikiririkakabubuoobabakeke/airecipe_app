@@ -25,9 +25,11 @@ function getDaysUntilExpiration(ingredient: Ingredient) {
 
 export const IngredientsPanel = memo(function IngredientsPanel({
   ingredients,
+  isLoading = false,
   onAddIngredient,
 }: {
   ingredients: Ingredient[]
+  isLoading?: boolean
   onAddIngredient?: () => void
 }) {
   const { t } = useI18n()
@@ -83,6 +85,10 @@ export const IngredientsPanel = memo(function IngredientsPanel({
             </li>
           ))}
         </ul>
+      ) : isLoading ? (
+        <p className="empty-state" aria-live="polite">
+          {t('common.loading')}
+        </p>
       ) : (
         <p className="empty-state">{t('home.ingredients.empty')}</p>
       )}

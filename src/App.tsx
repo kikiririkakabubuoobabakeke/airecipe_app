@@ -37,62 +37,146 @@ type OAuthSessionRequest = {
   promise: ReturnType<typeof createSessionFromOAuthTokens>
 }
 
+const loadHomePage = () => import('./pages/HomePage')
+const loadFridgePage = () => import('./pages/FridgePage')
+const loadRecipeDetailPage = () => import('./pages/RecipeDetailPage')
+const loadCookingHistoryPage = () => import('./pages/CookingHistoryPage')
+const loadReceiptScanPage = () => import('./pages/ReceiptScanPage')
+const loadGeminiTestPage = () => import('./pages/GeminiTestPage')
+const loadIngredientRegisterPage = () =>
+  import('./pages/IngredientRegisterPage')
+const loadReceiptDetailRegisterPage = () =>
+  import('./pages/ReceiptDetailRegisterPage')
+const loadSettingsPage = () => import('./pages/SettingsPage')
+const loadContactPage = () => import('./pages/ContactPage')
+const loadAdminConsolePage = () => import('./pages/AdminConsolePage')
+const loadRecipeGeneratePage = () => import('./pages/RecipeGeneratePage')
+const loadLoginScreen = () => import('./pages/LoginScreen')
+const loadRegisterPage = () => import('./pages/RegisterPage')
+
 const HomePage = lazy(() =>
-  import('./pages/HomePage').then((m) => ({ default: m.HomePage })),
+  loadHomePage().then((m) => ({ default: m.HomePage })),
 )
 const FridgePage = lazy(() =>
-  import('./pages/FridgePage').then((m) => ({ default: m.FridgePage })),
+  loadFridgePage().then((m) => ({ default: m.FridgePage })),
 )
 const RecipeDetailPage = lazy(() =>
-  import('./pages/RecipeDetailPage').then((m) => ({
+  loadRecipeDetailPage().then((m) => ({
     default: m.RecipeDetailPage,
   })),
 )
 const CookingHistoryPage = lazy(() =>
-  import('./pages/CookingHistoryPage').then((m) => ({
+  loadCookingHistoryPage().then((m) => ({
     default: m.CookingHistoryPage,
   })),
 )
 const ReceiptScanPage = lazy(() =>
-  import('./pages/ReceiptScanPage').then((m) => ({
+  loadReceiptScanPage().then((m) => ({
     default: m.ReceiptScanPage,
   })),
 )
 const GeminiTestPage = lazy(() =>
-  import('./pages/GeminiTestPage').then((m) => ({ default: m.GeminiTestPage })),
+  loadGeminiTestPage().then((m) => ({ default: m.GeminiTestPage })),
 )
 const IngredientRegisterPage = lazy(() =>
-  import('./pages/IngredientRegisterPage').then((m) => ({
+  loadIngredientRegisterPage().then((m) => ({
     default: m.IngredientRegisterPage,
   })),
 )
 const ReceiptDetailRegisterPage = lazy(() =>
-  import('./pages/ReceiptDetailRegisterPage').then((m) => ({
+  loadReceiptDetailRegisterPage().then((m) => ({
     default: m.ReceiptDetailRegisterPage,
   })),
 )
 const SettingsPage = lazy(() =>
-  import('./pages/SettingsPage').then((m) => ({ default: m.SettingsPage })),
+  loadSettingsPage().then((m) => ({ default: m.SettingsPage })),
 )
 const ContactPage = lazy(() =>
-  import('./pages/ContactPage').then((m) => ({ default: m.ContactPage })),
+  loadContactPage().then((m) => ({ default: m.ContactPage })),
 )
 const AdminConsolePage = lazy(() =>
-  import('./pages/AdminConsolePage').then((m) => ({
+  loadAdminConsolePage().then((m) => ({
     default: m.AdminConsolePage,
   })),
 )
 const RecipeGeneratePage = lazy(() =>
-  import('./pages/RecipeGeneratePage').then((m) => ({
+  loadRecipeGeneratePage().then((m) => ({
     default: m.RecipeGeneratePage,
   })),
 )
-const LoginScreen = lazy(() => import('./pages/LoginScreen'))
-const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const LoginScreen = lazy(loadLoginScreen)
+const RegisterPage = lazy(loadRegisterPage)
 
 const PAGE_FALLBACK = (
   <div className="page-loading" aria-label="Loading page..." />
 )
+
+type WindowWithIdleCallback = Window &
+  typeof globalThis & {
+    requestIdleCallback?: (
+      callback: () => void,
+      options?: { timeout?: number },
+    ) => number
+    cancelIdleCallback?: (handle: number) => void
+  }
+
+function scheduleAfterInitialPaint(callback: () => void) {
+  if (typeof window === 'undefined') {
+    callback()
+    return () => undefined
+  }
+
+  const idleWindow = window as WindowWithIdleCallback
+  let idleHandle: number | null = null
+  let fallbackHandle: number | null = null
+
+  const startHandle = window.setTimeout(() => {
+    if (idleWindow.requestIdleCallback) {
+      idleHandle = idleWindow.requestIdleCallback(callback, { timeout: 4000 })
+      return
+    }
+
+    fallbackHandle = window.setTimeout(callback, 900)
+  }, 700)
+
+  return () => {
+    window.clearTimeout(startHandle)
+
+    if (idleHandle !== null && idleWindow.cancelIdleCallback) {
+      idleWindow.cancelIdleCallback(idleHandle)
+    }
+
+    if (fallbackHandle !== null) {
+      window.clearTimeout(fallbackHandle)
+    }
+  }
+}
+
+function preloadAuthenticatedRouteModules() {
+  const primaryLoaders = [
+    loadHomePage,
+    loadFridgePage,
+    loadRecipeGeneratePage,
+    loadIngredientRegisterPage,
+    loadCookingHistoryPage,
+  ]
+  const secondaryLoaders = [
+    loadSettingsPage,
+    loadContactPage,
+    loadReceiptScanPage,
+    loadRecipeDetailPage,
+  ]
+
+  primaryLoaders.forEach((loader) => {
+    void loader()
+  })
+
+  window.setTimeout(() => {
+    secondaryLoaders.forEach((loader) => {
+      void loader()
+    })
+  }, 1800)
+}
 
 function getPageFromPath(): AppDestination {
   switch (window.location.pathname) {
@@ -214,8 +298,13 @@ function App() {
   useEffect(() => {
     if (currentUser && !hasPreloaded.current) {
       hasPreloaded.current = true
-      void preloadAllPageData()
+      return scheduleAfterInitialPaint(() => {
+        preloadAuthenticatedRouteModules()
+        void preloadAllPageData()
+      })
     }
+
+    return undefined
   }, [currentUser])
 
   useEffect(() => {
@@ -432,7 +521,7 @@ function App() {
   }, [handleNavigate, receiptDetailBackPage])
 
   if (isAuthLoading) {
-    return null
+    return PAGE_FALLBACK
   }
 
   if (!currentUser) {

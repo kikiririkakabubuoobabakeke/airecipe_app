@@ -4,6 +4,7 @@ import { useI18n } from '../lib/useI18n'
 
 type RecipesPanelProps = {
   recipes: Recipe[]
+  isLoading?: boolean
   isGenerating?: boolean
   onGenerateRecipe?: () => void
   onSelectRecipe?: (recipe: Recipe) => void
@@ -26,6 +27,7 @@ function getRecipeTimestamp(recipe: Recipe) {
 
 export const RecipesPanel = memo(function RecipesPanel({
   recipes,
+  isLoading = false,
   isGenerating = false,
   onGenerateRecipe,
   onSelectRecipe,
@@ -108,6 +110,10 @@ export const RecipesPanel = memo(function RecipesPanel({
               </div>
             </article>
           ))
+        ) : isLoading ? (
+          <p className="empty-state" aria-live="polite">
+            {t('common.loading')}
+          </p>
         ) : (
           <p className="empty-state">{t('home.recipes.empty')}</p>
         )}

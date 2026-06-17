@@ -1,14 +1,31 @@
 import { getStoredLanguage } from './i18n'
-import { setCache } from './dataCache'
+import { getCache, setCache } from './dataCache'
 import {
   fetchInventory,
   fetchSavedRecipes,
 } from './recipeApi'
-import { dispatchPreferencesUpdated, fetchPreferences } from './preferencesApi'
+import {
+  defaultPreferences,
+  dispatchPreferencesUpdated,
+  fetchPreferences,
+} from './preferencesApi'
 import type { Ingredient, Recipe, UserPreferences } from '../types/ui'
 
 export async function preloadAllPageData(): Promise<void> {
   const language = getStoredLanguage() ?? 'ja'
+  const cachedHomeData = getCache<{
+    ingredients: Ingredient[]
+    recipes: Recipe[]
+    preferences: UserPreferences
+  }>(`home:${language}`)
+
+  if (cachedHomeData) {
+    setCache(`inventory:${language}`, cachedHomeData.ingredients)
+    setCache(`cooking-history:${language}`, cachedHomeData.recipes)
+    setCache(`recipe-generate:${language}`, cachedHomeData)
+    dispatchPreferencesUpdated(cachedHomeData.preferences)
+    return
+  }
 
   let inventoryData: Ingredient[] = []
   let recipesData: Recipe[] = []
@@ -38,7 +55,11 @@ export async function preloadAllPageData(): Promise<void> {
   }
 
   if (inventoryData.length || recipesData.length || preferencesData) {
-    const homeData = { ingredients: inventoryData, recipes: recipesData, preferences: preferencesData ?? {} as UserPreferences }
+    const homeData = {
+      ingredients: inventoryData,
+      recipes: recipesData,
+      preferences: preferencesData ?? defaultPreferences,
+    }
     setCache(`inventory:${language}`, inventoryData)
     setCache(`home:${language}`, homeData)
     setCache(`cooking-history:${language}`, recipesData)

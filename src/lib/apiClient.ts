@@ -9,6 +9,8 @@ export class ApiError extends Error {
   }
 }
 
+const pendingGetRequests = new Map<string, Promise<unknown>>()
+
 export async function readJson<T>(response: Response): Promise<T> {
   let payload: ApiResponse<T>
 
@@ -71,11 +73,31 @@ export async function getJson<T>(
   path: string,
   options: { credentials?: RequestCredentials; cache?: RequestCache } = {},
 ): Promise<T> {
-  const response = await fetch(path, {
-    credentials: options.credentials ?? 'same-origin',
-    cache: options.cache ?? 'no-store',
-  })
-  return readJson<T>(response)
+  const credentials = options.credentials ?? 'same-origin'
+  const cache = options.cache ?? 'no-store'
+  const requestKey = `${path}|${credentials}|${cache}`
+  const pendingRequest = pendingGetRequests.get(requestKey) as
+    | Promise<T>
+    | undefined
+
+  if (pendingRequest) {
+    return pendingRequest
+  }
+
+  const request = fetch(path, {
+    credentials,
+    cache,
+  }).then((response) => readJson<T>(response))
+
+  pendingGetRequests.set(requestKey, request)
+
+  try {
+    return await request
+  } finally {
+    if (pendingGetRequests.get(requestKey) === request) {
+      pendingGetRequests.delete(requestKey)
+    }
+  }
 }
 
 export async function deleteJson<T>(
