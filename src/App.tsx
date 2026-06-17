@@ -225,29 +225,36 @@ function pushPath(path: string) {
   }
 }
 
-function readOAuthTokensFromHash() {
+function readOAuthTokensFromUrl() {
   const hash = window.location.hash.startsWith('#')
     ? window.location.hash.slice(1)
     : ''
+  const query = window.location.search.startsWith('?')
+    ? window.location.search.slice(1)
+    : ''
 
-  if (!hash) {
-    return null
+  for (const source of [hash, query]) {
+    if (!source) {
+      continue
+    }
+
+    const params = new URLSearchParams(source)
+    const accessToken = params.get('access_token')
+    const refreshToken = params.get('refresh_token')
+    const type = params.get('type')
+
+    if (!accessToken || !refreshToken) {
+      continue
+    }
+
+    return {
+      accessToken,
+      refreshToken,
+      type,
+    }
   }
 
-  const params = new URLSearchParams(hash)
-  const accessToken = params.get('access_token')
-  const refreshToken = params.get('refresh_token')
-  const type = params.get('type')
-
-  if (!accessToken || !refreshToken) {
-    return null
-  }
-
-  return {
-    accessToken,
-    refreshToken,
-    type,
-  }
+  return null
 }
 
 function createOAuthSessionOnce(
@@ -311,7 +318,7 @@ function App() {
     let isMounted = true
 
     async function initializeAuth() {
-      const oauthTokens = readOAuthTokensFromHash()
+      const oauthTokens = readOAuthTokensFromUrl()
 
       try {
         if (oauthTokens) {

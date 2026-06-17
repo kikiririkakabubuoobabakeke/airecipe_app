@@ -76,6 +76,7 @@ export function CookingHistoryPage({
   const [retryCount, setRetryCount] = useState(0)
   const [activeFilter, setActiveFilter] = useState<RecipeFilter>(initialFilter)
   const [searchQuery, setSearchQuery] = useState('')
+  const [activeTag, setActiveTag] = useState('')
   const [sortMode, setSortMode] = useState<RecipeSortMode>('createdDesc')
   const [isSelectionMode, setIsSelectionMode] = useState(false)
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(
@@ -88,22 +89,32 @@ export function CookingHistoryPage({
   const filteredRecipes = useMemo(
     () => {
       const normalizedSearch = searchQuery.trim().toLocaleLowerCase()
+      const normalizedActiveTag = activeTag.trim().toLocaleLowerCase()
 
       return recipes
         .filter((recipe) => {
-        if (activeFilter === 'cooked') {
-          return recipe.isCooked
-        }
+          if (activeFilter === 'cooked') {
+            return recipe.isCooked
+          }
 
-        if (activeFilter === 'uncooked') {
-          return !recipe.isCooked
-        }
+          if (activeFilter === 'uncooked') {
+            return !recipe.isCooked
+          }
 
-        if (activeFilter === 'favorite') {
-          return recipe.isFavorite
-        }
+          if (activeFilter === 'favorite') {
+            return recipe.isFavorite
+          }
 
-        return true
+          return true
+        })
+        .filter((recipe) => {
+          if (!normalizedActiveTag) {
+            return true
+          }
+
+          return (recipe.tags ?? []).some(
+            (tag) => tag.trim().toLocaleLowerCase() === normalizedActiveTag,
+          )
         })
         .filter((recipe) => {
           if (!normalizedSearch) {
@@ -143,7 +154,7 @@ export function CookingHistoryPage({
           return rightCreated - leftCreated
         })
     },
-    [activeFilter, language, recipes, searchQuery, sortMode],
+    [activeFilter, activeTag, language, recipes, searchQuery, sortMode],
   )
   const filterCounts = useMemo(
     () => ({
@@ -156,7 +167,10 @@ export function CookingHistoryPage({
   )
   const selectedCount = selectedRecipeIds.size
   const isFilterActive =
-    activeFilter !== 'all' || searchQuery.trim() !== '' || sortMode !== 'createdDesc'
+    activeFilter !== 'all' ||
+    activeTag.trim() !== '' ||
+    searchQuery.trim() !== '' ||
+    sortMode !== 'createdDesc'
 
   useEffect(() => {
     let isMounted = true
@@ -164,8 +178,12 @@ export function CookingHistoryPage({
 
     const cached = getCache<Recipe[]>(cacheKey)
     if (cached) {
-      setRecipes(cached)
-      setIsLoading(false)
+      queueMicrotask(() => {
+        if (isMounted) {
+          setRecipes(cached)
+          setIsLoading(false)
+        }
+      })
     }
 
     fetchSavedRecipes(language)
@@ -217,8 +235,27 @@ export function CookingHistoryPage({
 
   function clearFilters() {
     setActiveFilter('all')
+    setActiveTag('')
     setSearchQuery('')
     setSortMode('createdDesc')
+  }
+
+  function handleTagFilter(tag: string) {
+    const nextTag = tag.trim()
+
+    if (!nextTag) {
+      return
+    }
+
+    setActiveTag(nextTag)
+    setActiveFilter('all')
+    setSearchQuery('')
+  }
+
+  function isTagActive(tag: string) {
+    return (
+      activeTag.trim().toLocaleLowerCase() === tag.trim().toLocaleLowerCase()
+    )
   }
 
   function toggleRecipeSelection(recipeId: string) {
@@ -429,6 +466,21 @@ export function CookingHistoryPage({
               ))}
             </div>
 
+            {activeTag ? (
+              <div className="history-active-tag" role="status">
+                <span>
+                  {t('history.tagFilter.label')}: {activeTag}
+                </span>
+                <button
+                  type="button"
+                  className="history-tag-clear"
+                  onClick={() => setActiveTag('')}
+                >
+                  {t('history.tagFilter.clear')}
+                </button>
+              </div>
+            ) : null}
+
             {filteredRecipes.length === 0 ? (
               <p className="empty-state">{t('history.emptyFilter')}</p>
             ) : (
@@ -450,24 +502,37 @@ export function CookingHistoryPage({
                         <span>{t('history.selection.item')}</span>
                       </label>
                     ) : null}
-                    <button
-                      type="button"
-                      className="history-card-main"
-                      onClick={() => handleCardAction(recipe)}
-                    >
-                      <div>
-                        <span className="status-pill">
-                          {formatRecipeStatus(recipe, language, t)}
-                        </span>
-                        <h2>{recipe.name}</h2>
-                        <p>{recipe.meta}</p>
-                      </div>
-                      <div className="tag-row">
-                        {recipe.tags.map((tag) => (
-                          <span key={tag}>{tag}</span>
-                        ))}
-                      </div>
-                    </button>
+                    <div className="history-card-main">
+                      <button
+                        type="button"
+                        className="history-card-open"
+                        onClick={() => handleCardAction(recipe)}
+                      >
+                        <div>
+                          <span className="status-pill">
+                            {formatRecipeStatus(recipe, language, t)}
+                          </span>
+                          <h2>{recipe.name}</h2>
+                          <p>{recipe.meta}</p>
+                        </div>
+                      </button>
+                      {recipe.tags?.length ? (
+                        <div className="tag-row history-card-tags">
+                          {recipe.tags.map((tag, index) => (
+                            <button
+                              key={`${tag}-${index}`}
+                              type="button"
+                              className={`history-tag-button ${
+                                isTagActive(tag) ? 'is-active' : ''
+                              }`}
+                              onClick={() => handleTagFilter(tag)}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
                     <div className="history-card-actions">
                       <button
                         type="button"

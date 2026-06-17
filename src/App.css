@@ -356,7 +356,7 @@ button:disabled {
 }
 
 .home {
-  width: min(1180px, calc(100% - 40px));
+  width: min(1080px, calc(100% - 40px));
   margin: 0 auto;
   padding: var(--page-padding-top) 0 var(--page-padding-bottom);
 }
@@ -1368,6 +1368,43 @@ button:disabled {
   color: #fff;
 }
 
+.history-active-tag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: calc(-1 * var(--space-2)) 0 var(--space-4);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.history-active-tag span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.history-tag-clear {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.history-tag-clear:hover {
+  color: var(--ink);
+  border-color: var(--subtle);
+}
+
 .history-card {
   display: grid;
   width: 100%;
@@ -1396,11 +1433,39 @@ button:disabled {
 .history-card-main {
   display: grid;
   width: 100%;
-  gap: var(--space-4);
+  min-width: 0;
+  gap: var(--space-3);
+  color: inherit;
+}
+
+.history-card-open {
+  display: grid;
+  width: 100%;
+  min-width: 0;
   padding: 0;
   color: inherit;
   background: transparent;
   text-align: left;
+}
+
+.history-card-tags {
+  margin-top: 0;
+}
+
+.history-tag-button {
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--ink);
+  background: var(--surface-soft);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.history-tag-button:hover,
+.history-tag-button.is-active {
+  border-color: var(--subtle);
+  background: #fff;
 }
 
 .history-card h2 {
@@ -2330,7 +2395,7 @@ button:disabled {
   }
 
   .home {
-    width: min(100% - 28px, 1180px);
+    width: min(100% - 28px, 1080px);
     padding-top: 18px;
   }
 
@@ -2496,7 +2561,7 @@ button:disabled {
 /* Fridge Page Styles */
 
 .fridge-container {
-  width: min(1180px, calc(100% - 40px));
+  width: min(1080px, calc(100% - 40px));
   margin: 0 auto;
   padding: var(--page-padding-top) 0 var(--page-padding-bottom);
 }
@@ -3196,6 +3261,11 @@ button:disabled {
 }
 
 @media (max-width: 700px) {
+  .fridge-container {
+    width: min(100% - 28px, 1080px);
+    padding-top: 18px;
+  }
+
   .fridge-header {
     flex-direction: column;
     align-items: flex-start;

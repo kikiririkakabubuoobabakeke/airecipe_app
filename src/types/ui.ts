@@ -120,4 +120,7 @@ export type UserPreferences = {
     expiration: boolean
     expirationLeadDays: number
   }
+  voice: {
+    enabled: boolean
+  }
 }

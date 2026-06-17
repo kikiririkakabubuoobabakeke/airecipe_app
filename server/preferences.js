@@ -12,6 +12,9 @@ export const defaultUserPreferences = {
     expiration: true,
     expirationLeadDays: 3,
   },
+  voice: {
+    enabled: false,
+  },
 }
 
 const allowedRecipeModels = new Set(['gemini', 'groq'])
@@ -70,6 +73,8 @@ export function sanitizeUserPreferences(value) {
     source.notifications && typeof source.notifications === 'object'
       ? source.notifications
       : {}
+  const voice =
+    source.voice && typeof source.voice === 'object' ? source.voice : {}
 
   return {
     defaultServings: sanitizeDefaultServings(source.defaultServings),
@@ -85,6 +90,9 @@ export function sanitizeUserPreferences(value) {
     notifications: {
       expiration: notifications.expiration !== false,
       expirationLeadDays: sanitizeLeadDays(notifications.expirationLeadDays),
+    },
+    voice: {
+      enabled: voice.enabled === true,
     },
   }
 }

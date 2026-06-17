@@ -446,8 +446,10 @@ export function IngredientRegisterPage({
               <div className="panel receipt-uploader">
                 <div className="section-heading">
                   <div>
-                    <p className="eyebrow">{t('receipt.sourceEyebrow')}</p>
-                    <h2>{t('receipt.sourceTitle')}</h2>
+                    <p className="eyebrow">
+                      {t('ingredientRegister.imageSourceEyebrow')}
+                    </p>
+                    <h2>{t('ingredientRegister.imageSourceTitle')}</h2>
                   </div>
                 </div>
 

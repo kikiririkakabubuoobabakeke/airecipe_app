@@ -129,18 +129,29 @@ export default function LoginScreen({
         </div>
 
         {isPasswordReset ? (
-          <p className="auth-note">
-            {t("login.passwordResetMode")}
-          </p>
+          <>
+            <input
+              type="email"
+              name="email"
+              value=""
+              autoComplete="username"
+              readOnly
+              hidden
+            />
+            <p className="auth-note">
+              {t("login.passwordResetMode")}
+            </p>
+          </>
         ) : (
           <div className="auth-field">
             <label>{t("login.email")}</label>
             <input
               type="email"
+              name="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="your@email.com"
-              autoComplete="email"
+              autoComplete="username"
             />
           </div>
         )}
@@ -151,6 +162,7 @@ export default function LoginScreen({
           </label>
           <input
             type="password"
+            name={isPasswordReset ? "new-password" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"

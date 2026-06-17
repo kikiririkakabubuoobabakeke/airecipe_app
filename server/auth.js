@@ -314,11 +314,10 @@ export async function refreshSessionFromRefreshToken(refreshToken) {
 
 export async function updatePasswordWithTokens({
   accessToken,
-  refreshToken,
   password,
 }) {
-  if (!accessToken || !refreshToken) {
-    throw new Error('accessToken and refreshToken are required')
+  if (!accessToken) {
+    throw new Error('accessToken is required')
   }
 
   if (!password || String(password).length < 6) {
@@ -326,6 +325,11 @@ export async function updatePasswordWithTokens({
   }
 
   const user = await ensurePublicUser(await getUserFromAccessToken(accessToken))
+
+  if (!user?.email) {
+    throw new Error('email is required to complete password reset')
+  }
+
   const client = requireAuthAdminClient()
   const { error } = await client.auth.admin.updateUserById(user.id, {
     password,
@@ -335,13 +339,10 @@ export async function updatePasswordWithTokens({
     throw new Error(error.message)
   }
 
-  const session = await refreshSessionFromRefreshToken(refreshToken)
-
-  return {
-    user: session.user,
-    session: session.session,
-    expiresAt: session.expiresAt,
-  }
+  return signInWithPassword({
+    email: user.email,
+    password,
+  })
 }
 
 export async function getUserFromAccessToken(accessToken) {

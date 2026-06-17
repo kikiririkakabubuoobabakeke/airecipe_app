@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { defaultPreferences, fetchPreferences } from '../lib/preferencesApi'
 import { markRecipeCooked, setRecipeFavorite } from '../lib/recipeApi'
 import { useRecipeSpeech } from '../lib/useRecipeSpeech'
 import { useI18n } from '../lib/useI18n'
-import type { AppDestination, Ingredient, Recipe } from '../types/ui'
+import type {
+  AppDestination,
+  Ingredient,
+  Recipe,
+  UserPreferences,
+} from '../types/ui'
 
 type RecipeDetailPageProps = {
   recipe: Recipe
@@ -24,6 +30,8 @@ export function RecipeDetailPage({
   const [isFavorite, setIsFavorite] = useState(Boolean(recipe.isFavorite))
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false)
   const [message, setMessage] = useState('')
+  const [preferences, setPreferences] =
+    useState<UserPreferences>(defaultPreferences)
   const displayTags = isFavorite
     ? Array.from(new Set([t('recipe.favoriteTag'), ...recipe.tags]))
     : recipe.tags.filter(
@@ -46,6 +54,58 @@ export function RecipeDetailPage({
     language,
     t,
   })
+  const isVoiceGuideEnabled = Boolean(preferences.voice?.enabled)
+  const isRecipeSpeechPaused = recipeSpeech.isPaused
+  const isRecipeSpeechSpeaking = recipeSpeech.isSpeaking
+  const stopRecipeSpeech = recipeSpeech.stop
+
+  useEffect(() => {
+    let isMounted = true
+
+    function loadPreferences() {
+      fetchPreferences()
+        .then((result) => {
+          if (isMounted) {
+            setPreferences(result.preferences)
+          }
+        })
+        .catch((error) => {
+          console.warn('[vite] Preferences fetch failed:', error)
+        })
+    }
+
+    function handlePreferencesUpdated(event: Event) {
+      const nextPreferences = (
+        event as CustomEvent<{ preferences?: UserPreferences }>
+      ).detail?.preferences
+
+      if (nextPreferences) {
+        setPreferences(nextPreferences)
+        return
+      }
+
+      loadPreferences()
+    }
+
+    loadPreferences()
+    window.addEventListener('preferences-updated', handlePreferencesUpdated)
+
+    return () => {
+      isMounted = false
+      window.removeEventListener('preferences-updated', handlePreferencesUpdated)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isVoiceGuideEnabled && (isRecipeSpeechSpeaking || isRecipeSpeechPaused)) {
+      stopRecipeSpeech()
+    }
+  }, [
+    isVoiceGuideEnabled,
+    isRecipeSpeechPaused,
+    isRecipeSpeechSpeaking,
+    stopRecipeSpeech,
+  ])
 
   async function handleCooked() {
     if (!recipe.recipeId) {
@@ -138,122 +198,124 @@ export function RecipeDetailPage({
           </p>
         ) : null}
 
-        <section
-          className="panel recipe-voice-panel"
-          aria-labelledby="recipe-voice-title"
-        >
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">{t('recipe.voice.eyebrow')}</p>
-              <h2 id="recipe-voice-title">{t('recipe.voice.title')}</h2>
+        {isVoiceGuideEnabled ? (
+          <section
+            className="panel recipe-voice-panel"
+            aria-labelledby="recipe-voice-title"
+          >
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">{t('recipe.voice.eyebrow')}</p>
+                <h2 id="recipe-voice-title">{t('recipe.voice.title')}</h2>
+              </div>
+              <span
+                className={`recipe-voice-status recipe-voice-status--${recipeSpeech.status}`}
+                role="status"
+              >
+                {recipeSpeech.statusLabel}
+              </span>
             </div>
-            <span
-              className={`recipe-voice-status recipe-voice-status--${recipeSpeech.status}`}
-              role="status"
-            >
-              {recipeSpeech.statusLabel}
-            </span>
-          </div>
 
-          <div className="recipe-voice-controls">
-            <button
-              type="button"
-              className="primary-button"
-              onClick={
-                recipeSpeech.isPaused
-                  ? recipeSpeech.resume
-                  : recipeSpeech.startGuide
-              }
-              disabled={!recipeSpeech.isSpeechSupported}
-            >
-              <Icon name={recipeSpeech.isPaused ? 'play' : 'volume'} />
-              <span>
-                {recipeSpeech.isPaused
-                  ? t('recipe.voice.resume')
-                  : t('recipe.voice.start')}
-              </span>
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={recipeSpeech.pause}
-              disabled={!recipeSpeech.isSpeechSupported || !recipeSpeech.isSpeaking}
-            >
-              <Icon name="pause" />
-              <span>{t('recipe.voice.pause')}</span>
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={recipeSpeech.stop}
-              disabled={!recipeSpeech.isSpeechSupported}
-            >
-              <Icon name="stop" />
-              <span>{t('recipe.voice.stop')}</span>
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={recipeSpeech.speakIngredients}
-              disabled={
-                !recipeSpeech.isSpeechSupported || !recipe.ingredients?.length
-              }
-            >
-              <Icon name="basket" />
-              <span>{t('recipe.voice.ingredients')}</span>
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={recipeSpeech.previousStep}
-              disabled={!recipeSpeech.isSpeechSupported || steps.length === 0}
-            >
-              <Icon name="skipBack" />
-              <span>{t('recipe.voice.previous')}</span>
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={recipeSpeech.nextStep}
-              disabled={!recipeSpeech.isSpeechSupported || steps.length === 0}
-            >
-              <Icon name="skipForward" />
-              <span>{t('recipe.voice.next')}</span>
-            </button>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={recipeSpeech.repeatCurrent}
-              disabled={!recipeSpeech.isSpeechSupported || steps.length === 0}
-            >
-              <Icon name="repeat" />
-              <span>{t('recipe.voice.repeat')}</span>
-            </button>
-            <button
-              type="button"
-              className={`secondary-button recipe-voice-listen ${
-                recipeSpeech.isListening ? 'is-active' : ''
-              }`}
-              onClick={recipeSpeech.listenForCommand}
-              disabled={!recipeSpeech.isRecognitionSupported}
-            >
-              <Icon name="mic" />
-              <span>
-                {recipeSpeech.isListening
-                  ? t('recipe.voice.listening')
-                  : t('recipe.voice.listen')}
-              </span>
-            </button>
-          </div>
+            <div className="recipe-voice-controls">
+              <button
+                type="button"
+                className="primary-button"
+                onClick={
+                  recipeSpeech.isPaused
+                    ? recipeSpeech.resume
+                    : recipeSpeech.startGuide
+                }
+                disabled={!recipeSpeech.isSpeechSupported}
+              >
+                <Icon name={recipeSpeech.isPaused ? 'play' : 'volume'} />
+                <span>
+                  {recipeSpeech.isPaused
+                    ? t('recipe.voice.resume')
+                    : t('recipe.voice.start')}
+                </span>
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={recipeSpeech.pause}
+                disabled={!recipeSpeech.isSpeechSupported || !recipeSpeech.isSpeaking}
+              >
+                <Icon name="pause" />
+                <span>{t('recipe.voice.pause')}</span>
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={recipeSpeech.stop}
+                disabled={!recipeSpeech.isSpeechSupported}
+              >
+                <Icon name="stop" />
+                <span>{t('recipe.voice.stop')}</span>
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={recipeSpeech.speakIngredients}
+                disabled={
+                  !recipeSpeech.isSpeechSupported || !recipe.ingredients?.length
+                }
+              >
+                <Icon name="basket" />
+                <span>{t('recipe.voice.ingredients')}</span>
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={recipeSpeech.previousStep}
+                disabled={!recipeSpeech.isSpeechSupported || steps.length === 0}
+              >
+                <Icon name="skipBack" />
+                <span>{t('recipe.voice.previous')}</span>
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={recipeSpeech.nextStep}
+                disabled={!recipeSpeech.isSpeechSupported || steps.length === 0}
+              >
+                <Icon name="skipForward" />
+                <span>{t('recipe.voice.next')}</span>
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={recipeSpeech.repeatCurrent}
+                disabled={!recipeSpeech.isSpeechSupported || steps.length === 0}
+              >
+                <Icon name="repeat" />
+                <span>{t('recipe.voice.repeat')}</span>
+              </button>
+              <button
+                type="button"
+                className={`secondary-button recipe-voice-listen ${
+                  recipeSpeech.isListening ? 'is-active' : ''
+                }`}
+                onClick={recipeSpeech.listenForCommand}
+                disabled={!recipeSpeech.isRecognitionSupported}
+              >
+                <Icon name="mic" />
+                <span>
+                  {recipeSpeech.isListening
+                    ? t('recipe.voice.listening')
+                    : t('recipe.voice.listen')}
+                </span>
+              </button>
+            </div>
 
-          {recipeSpeech.transcript ? (
-            <p className="recipe-voice-transcript">
-              {t('recipe.voice.transcript', {
-                command: recipeSpeech.transcript,
-              })}
-            </p>
-          ) : null}
-        </section>
+            {recipeSpeech.transcript ? (
+              <p className="recipe-voice-transcript">
+                {t('recipe.voice.transcript', {
+                  command: recipeSpeech.transcript,
+                })}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
 
         <div className="recipe-detail__grid">
           <section className="panel">
@@ -297,7 +359,7 @@ export function RecipeDetailPage({
                   <li
                     key={step}
                     className={
-                      index === recipeSpeech.currentStepIndex
+                      isVoiceGuideEnabled && index === recipeSpeech.currentStepIndex
                         ? 'is-current'
                         : undefined
                     }

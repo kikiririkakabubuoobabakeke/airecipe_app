@@ -11,6 +11,9 @@ export const defaultPreferences: UserPreferences = {
     expiration: true,
     expirationLeadDays: 3,
   },
+  voice: {
+    enabled: false,
+  },
 }
 
 export async function fetchPreferences() {

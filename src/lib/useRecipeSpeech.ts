@@ -496,9 +496,21 @@ export function useRecipeSpeech({
   }, [isSpeechSupported])
 
   useEffect(() => {
-    setCurrentStepIndex(0)
-    setTranscript('')
-    stop()
+    let isMounted = true
+
+    queueMicrotask(() => {
+      if (!isMounted) {
+        return
+      }
+
+      setCurrentStepIndex(0)
+      setTranscript('')
+      stop()
+    })
+
+    return () => {
+      isMounted = false
+    }
   }, [recipeName, stop])
 
   return {

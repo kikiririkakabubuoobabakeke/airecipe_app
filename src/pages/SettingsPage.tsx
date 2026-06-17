@@ -149,6 +149,24 @@ export function SettingsPage({
     )
   }
 
+  function updateVoicePreference(
+    key: keyof UserPreferences['voice'],
+    value: boolean,
+    delayMs = 0,
+  ) {
+    applyPreferences(
+      {
+        ...preferencesRef.current,
+        voice: {
+          ...(preferencesRef.current.voice ?? defaultPreferences.voice),
+          [key]: value,
+        },
+      },
+      'preferences',
+      delayMs,
+    )
+  }
+
   function updateDisplayLanguage(nextLanguage: UserPreferences['displayLanguage']) {
     setLanguage(nextLanguage)
     updatePreference('displayLanguage', nextLanguage, 'preferences')
@@ -400,6 +418,23 @@ export function SettingsPage({
                   </button>
                 ))}
               </div>
+            </fieldset>
+
+            <fieldset className="settings-fieldset">
+              <legend>{t('settings.voiceTitle')}</legend>
+              <p>{t('settings.voiceDescription')}</p>
+              <label className="settings-toggle">
+                <input
+                  type="checkbox"
+                  checked={Boolean(preferences.voice?.enabled)}
+                  disabled={isLoadingPreferences}
+                  onChange={(event) =>
+                    updateVoicePreference('enabled', event.currentTarget.checked)
+                  }
+                />
+                <span>{t('settings.voiceEnabled')}</span>
+              </label>
+              <p className="settings-note">{t('settings.voiceDefaultOff')}</p>
             </fieldset>
 
           </article>
