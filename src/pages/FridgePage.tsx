@@ -748,8 +748,16 @@ export function FridgePage({
     return !window.matchMedia('(max-width: 700px)').matches
   }
 
-  function handleIngredientRowClick(item: AggregatedIngredient) {
-    if (isSelectionMode || !shouldUseRowDetailClick()) {
+  function handleIngredientRowClick(
+    item: AggregatedIngredient,
+    isSelected: boolean,
+  ) {
+    if (isSelectionMode) {
+      setGroupSelected(item.items, !isSelected)
+      return
+    }
+
+    if (!shouldUseRowDetailClick()) {
       return
     }
 
@@ -1102,6 +1110,8 @@ export function FridgePage({
                           }
                           if (!isSelectionMode) {
                             rowClassNames.push('fridge-detail-row')
+                          } else {
+                            rowClassNames.push('fridge-select-row')
                           }
 
                           return (
@@ -1110,7 +1120,9 @@ export function FridgePage({
                               className={rowClassNames.join(' ')}
                               data-expired={isExpiredItem ? "true" : undefined}
                               data-near-expiration={isWarning ? "true" : undefined}
-                              onClick={() => handleIngredientRowClick(item)}
+                              onClick={() =>
+                                handleIngredientRowClick(item, isSelected)
+                              }
                             >
                               {isSelectionMode ? (
                                 <td>
@@ -1121,6 +1133,7 @@ export function FridgePage({
                                       { name: item.name },
                                     )}
                                     checked={isSelected}
+                                    onClick={(event) => event.stopPropagation()}
                                     onChange={(event) =>
                                       setGroupSelected(
                                         item.items,

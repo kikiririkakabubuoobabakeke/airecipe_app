@@ -16,6 +16,7 @@ if (import.meta.env.DEV) {
 }
 import { PageShell } from './components/PageShell'
 import { preloadAllPageData } from './lib/preload'
+import { clearCache } from './lib/dataCache'
 import {
   createSessionFromOAuthTokens,
   getCurrentUser,
@@ -156,13 +157,65 @@ function scheduleAfterInitialPaint(callback: () => void) {
   }
 }
 
-function preloadAuthenticatedRouteModules() {
-  const primaryLoaders = [
-    loadHomePage,
-    loadFridgePage,
-    loadRecipeGeneratePage,
-    loadIngredientRegisterPage,
-    loadCookingHistoryPage,
+function queueRouteModulePreloads(loaders: Array<() => Promise<unknown>>) {
+  if (typeof window === 'undefined') {
+    loaders.forEach((loader) => void loader())
+    return
+  }
+
+  const idleWindow = window as WindowWithIdleCallback
+
+  function run(index: number) {
+    const loader = loaders[index]
+
+    if (!loader) {
+      return
+    }
+
+    const load = () => {
+      void loader().catch((error) => {
+        console.warn('[vite] Route preload failed:', error)
+      })
+      window.setTimeout(() => run(index + 1), 160)
+    }
+
+    if (idleWindow.requestIdleCallback) {
+      idleWindow.requestIdleCallback(load, { timeout: 1400 })
+      return
+    }
+
+    window.setTimeout(load, index === 0 ? 0 : 160)
+  }
+
+  run(0)
+}
+
+function preloadAuthenticatedRouteModules(
+  currentPage: Page,
+  includeAdmin: boolean,
+) {
+  const routeLoaders: Record<string, () => Promise<unknown>> = {
+    home: loadHomePage,
+    fridge: loadFridgePage,
+    'recipe-generate': loadRecipeGeneratePage,
+    'ingredient-register': loadIngredientRegisterPage,
+    history: loadCookingHistoryPage,
+    settings: loadSettingsPage,
+    receipt: loadReceiptScanPage,
+    contact: loadContactPage,
+    admin: loadAdminConsolePage,
+    recipe: loadRecipeDetailPage,
+    'receipt-detail': loadReceiptDetailRegisterPage,
+    test: loadGeminiTestPage,
+  }
+  const primaryPages: Page[] = [
+    currentPage,
+    'home',
+    'fridge',
+    'recipe-generate',
+    'ingredient-register',
+    'history',
+    'settings',
   ]
   const secondaryLoaders = [
     loadSettingsPage,
@@ -171,16 +224,12 @@ function preloadAuthenticatedRouteModules() {
     loadRecipeDetailPage,
     loadShoppingListPage,
   ]
+  const orderedPages = Array.from(new Set([...primaryPages, ...secondaryPages]))
+  const loaders = orderedPages
+    .map((page) => routeLoaders[page])
+    .filter((loader): loader is () => Promise<unknown> => Boolean(loader))
 
-  primaryLoaders.forEach((loader) => {
-    void loader()
-  })
-
-  window.setTimeout(() => {
-    secondaryLoaders.forEach((loader) => {
-      void loader()
-    })
-  }, 1800)
+  queueRouteModulePreloads(loaders)
 }
 
 function getPageFromPath(): AppDestination {
@@ -313,13 +362,13 @@ function App() {
     if (currentUser && !hasPreloaded.current) {
       hasPreloaded.current = true
       return scheduleAfterInitialPaint(() => {
-        preloadAuthenticatedRouteModules()
-        void preloadAllPageData()
+        preloadAuthenticatedRouteModules(currentPage, Boolean(currentUser.isAdmin))
+        void preloadAllPageData({ currentPage, userId: currentUser.id })
       })
     }
 
     return undefined
-  }, [currentUser])
+  }, [currentPage, currentUser])
 
   useEffect(() => {
     let isMounted = true
@@ -465,6 +514,7 @@ function App() {
     setCurrentUser(null)
     setSelectedRecipe(null)
     setPasswordResetTokens(null)
+    clearCache()
     replacePath('/login')
     setCurrentPage('login')
   }, [])

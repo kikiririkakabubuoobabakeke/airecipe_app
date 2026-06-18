@@ -537,16 +537,6 @@ export function CookingHistoryPage({
                         </div>
                       ) : null}
                     </div>
-                    <div className="history-card-actions">
-                      <button
-                        type="button"
-                        className="danger-text-button"
-                        disabled={isDeleting || !getRecipeId(recipe)}
-                        onClick={() => setDeleteConfirmIds([getRecipeId(recipe)])}
-                      >
-                        {t('common.delete')}
-                      </button>
-                    </div>
                   </article>
                 ))}
               </div>
@@ -562,12 +552,21 @@ export function CookingHistoryPage({
       ) : null}
 
       {deleteConfirmIds ? (
-        <div className="modal-backdrop" role="presentation">
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && !isDeleting) {
+              setDeleteConfirmIds(null)
+            }
+          }}
+        >
           <section
             className="cook-modal history-delete-modal"
             aria-labelledby="history-delete-title"
             aria-modal="true"
             role="dialog"
+            onClick={(event) => event.stopPropagation()}
           >
             <p className="eyebrow">{t('common.delete')}</p>
             <h2 id="history-delete-title">{t('history.delete.title')}</h2>
@@ -579,14 +578,6 @@ export function CookingHistoryPage({
             <div className="modal-actions">
               <button
                 type="button"
-                className="secondary-button"
-                disabled={isDeleting}
-                onClick={() => setDeleteConfirmIds(null)}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                type="button"
                 className="secondary-button danger-button"
                 disabled={isDeleting}
                 onClick={() => {
@@ -594,6 +585,14 @@ export function CookingHistoryPage({
                 }}
               >
                 {isDeleting ? t('common.deleting') : t('common.delete')}
+              </button>
+              <button
+                type="button"
+                className="secondary-button"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirmIds(null)}
+              >
+                {t('common.cancel')}
               </button>
             </div>
           </section>
