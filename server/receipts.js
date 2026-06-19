@@ -41,6 +41,7 @@ function addDaysIsoDate(days) {
 
 const validCategories = new Set([
   '野菜',
+  '果物',
   '肉',
   '魚',
   '卵',
@@ -80,6 +81,10 @@ function inferCategory(name, category) {
 
   if (/(小松菜|玉ねぎ|キャベツ|にんじん|じゃがいも|トマト|野菜|ねぎ|白菜|大根)/u.test(name)) {
     return '野菜'
+  }
+
+  if (/(リンゴ|りんご|バナナ|みかん|ぶどう|グレープ|レモン|モモ|もも|イチゴ|いちご|メロン|スイカ|すいか|果物|フルーツ|梨|なし|ナシ|パイン|キウイ|ブルーベリー|チェリー)/u.test(name)) {
+    return '果物'
   }
 
   if (/(鮭|サーモン|魚|さば|鯖|さんま|まぐろ|刺身)/u.test(name)) {
@@ -150,6 +155,9 @@ function inferQuantityFromText(text) {
 
 function normalizeCategory(category) {
   const value = String(category ?? '').trim()
+  if (value === 'フルーツ') {
+    return '果物'
+  }
   return validCategories.has(value) ? value : 'その他'
 }
 
@@ -216,7 +224,7 @@ function buildReceiptPrompt(ocrText, productLines, registrationDate) {
 - 商品名は自然な日本語の食材名に補正してください。例: サケキリミ→鮭切り身、コマツナ→小松菜、タマゴ→卵。
 - 誤読っぽいカタカナでも、一般的な食材名なら補正してください。
 - 商品名に価格や記号を含めないでください。
-- category は 野菜 / 肉 / 魚 / 卵 / 乳製品 / 主食 / 調味料 / 加工品 / 飲料 / その他 のどれかにしてください。
+- category は 野菜 / 肉 / 魚 / 卵 / 乳製品 / 果物 / 主食 / 調味料 / 加工品 / 飲料 / その他 のどれかにしてください。
 - quantity は個数・本数・パック数として分かる場合だけ数値にしてください。
 - gram はgやml換算できる場合だけ数値にしてください。mlはgram欄で扱ってください。
 - bestBeforeDate と expirationDate は YYYY-MM-DD 形式にしてください。
@@ -325,10 +333,10 @@ export async function parseReceiptText({ ocrText, registrationDate }) {
     const items = normalizeReceiptItems(payload.items).filter((item) =>
       productLines.length
         ? productLines.some((line) =>
-            line.includes(item.name) ||
-            normalizeIngredientName(line).includes(item.name) ||
-            item.name.includes(normalizeIngredientName(line)),
-          ) || item.category !== 'その他'
+          line.includes(item.name) ||
+          normalizeIngredientName(line).includes(item.name) ||
+          item.name.includes(normalizeIngredientName(line)),
+        ) || item.category !== 'その他'
         : true,
     )
 
@@ -351,6 +359,7 @@ function fallbackExpirationDate(item) {
 
   const categoryDays = {
     野菜: 5,
+    果物: 5,
     肉: 2,
     魚: 1,
     卵: 14,

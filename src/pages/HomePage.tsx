@@ -123,21 +123,63 @@ export function HomePage({
   onSelectRecipe,
 }: HomePageProps) {
   const { language, t } = useI18n()
-  const [ingredients, setIngredients] = useState<Ingredient[]>([])
-  const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [loadingState, setLoadingState] = useState<HomeLoadingState>({
-    ingredients: true,
-    recipes: true,
-    preferences: true,
+  const [ingredients, setIngredients] = useState<Ingredient[]>(() => {
+    const cacheKey = `home:${language}`
+    const cached = getCache<HomeData>(cacheKey)
+    return cached?.ingredients ?? []
   })
+  const [recipes, setRecipes] = useState<Recipe[]>(() => {
+    const cacheKey = `home:${language}`
+    const cached = getCache<HomeData>(cacheKey)
+    return cached?.recipes ?? []
+  })
+  const [preferences, setPreferences] = useState<UserPreferences>(() => {
+    const cacheKey = `home:${language}`
+    const cached = getCache<HomeData>(cacheKey)
+    return cached?.preferences ?? defaultPreferences
+  })
+  const [loadingState, setLoadingState] = useState<HomeLoadingState>(() => {
+    const cacheKey = `home:${language}`
+    const cached = getCache<HomeData>(cacheKey)
+    return {
+      ingredients: !cached,
+      recipes: !cached,
+      preferences: !cached,
+    }
+  })
+
+  const [prevLanguage, setPrevLanguage] = useState(language)
+  if (language !== prevLanguage) {
+    setPrevLanguage(language)
+    const cacheKey = `home:${language}`
+    const cached = getCache<HomeData>(cacheKey)
+    if (cached) {
+      setIngredients(cached.ingredients)
+      setRecipes(cached.recipes)
+      setPreferences(cached.preferences)
+      setLoadingState({
+        ingredients: false,
+        recipes: false,
+        preferences: false,
+      })
+    } else {
+      setIngredients([])
+      setRecipes([])
+      setPreferences(defaultPreferences)
+      setLoadingState({
+        ingredients: true,
+        recipes: true,
+        preferences: true,
+      })
+    }
+  }
+
   const [isGenerating, setIsGenerating] = useState(false)
   const [isCooking, setIsCooking] = useState(false)
   const [statusMessage, setStatusMessage] = useState('')
   const [toastMessage, setToastMessage] = useState('')
   const [cookingRecipe, setCookingRecipe] = useState<Recipe | null>(null)
   const [servings, setServings] = useState(1)
-  const [preferences, setPreferences] =
-    useState<UserPreferences>(defaultPreferences)
   const toastTimerRef = useRef<number | null>(null)
   const [prevLoadLanguage, setPrevLoadLanguage] = useState<string | null>(null)
 
@@ -211,12 +253,15 @@ export function HomePage({
       })
       .catch((error) => {
         console.warn('[vite] Inventory fetch failed:', error)
-        if (isMounted && !cached) {
-          setStatusMessage(
-            error instanceof Error
-              ? error.message
-              : t('home.status.inventoryFetchFailed'),
-          )
+        if (isMounted) {
+          const innerCached = getCache<HomeData>(cacheKey)
+          if (!innerCached) {
+            setStatusMessage(
+              error instanceof Error
+                ? error.message
+                : t('home.status.inventoryFetchFailed'),
+            )
+          }
         }
       })
       .finally(() => {

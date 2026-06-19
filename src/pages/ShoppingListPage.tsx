@@ -31,11 +31,11 @@ type ShoppingItem = {
   id: string
   name: string
   category: string
-  quantity: number | null 
-  gram: number | null     
-  isManual: boolean       
-  memo?: string           
-  checked: boolean        
+  quantity: number | null
+  gram: number | null
+  isManual: boolean
+  memo?: string
+  checked: boolean
 }
 
 type ManualShoppingForm = {
@@ -75,6 +75,17 @@ function inferCategory(name: string): string {
     n.includes('野菜') || n.includes('ほうれん草')
   ) {
     return '野菜'
+  }
+  if (
+    n.includes('りんご') || n.includes('リンゴ') || n.includes('バナナ') ||
+    n.includes('みかん') || n.includes('ぶどう') || n.includes('グレープ') ||
+    n.includes('レモン') || n.includes('もも') || n.includes('モモ') ||
+    n.includes('いちご') || n.includes('イチゴ') || n.includes('メロン') ||
+    n.includes('すいか') || n.includes('スイカ') || n.includes('キウイ') ||
+    n.includes('梨') || n.includes('なし') || n.includes('ナシ') ||
+    n.includes('オレンジ') || n.includes('フルーツ') || n.includes('果物')
+  ) {
+    return '果物'
   }
   if (
     n.includes('乳') || n.includes('ミルク') || n.includes('チーズ') ||
@@ -584,6 +595,8 @@ export function ShoppingListPage({
         return t('category.meatEggFish')
       case '野菜':
         return t('category.vegetable')
+      case '果物':
+        return t('category.fruit')
       case '乳製品':
         return t('category.dairy')
       case '加工品':
@@ -840,8 +853,8 @@ export function ShoppingListPage({
                     {selectedCategories.size === 0
                       ? t('fridge.filter.categoryAll')
                       : t('fridge.filter.categorySelected', {
-                          count: selectedCategories.size,
-                        })}
+                        count: selectedCategories.size,
+                      })}
                   </span>
                 </button>
                 {isCategoryDropdownOpen ? (

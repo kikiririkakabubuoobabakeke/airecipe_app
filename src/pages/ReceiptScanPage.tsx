@@ -402,240 +402,240 @@ export function ReceiptScanPage({
         </div>
       ) : null}
 
-        <section className="receipt-layout">
-          <div className="panel receipt-uploader">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t('receipt.sourceEyebrow')}</p>
-                <h2>{t('receipt.sourceTitle')}</h2>
-              </div>
+      <section className="receipt-layout">
+        <div className="panel receipt-uploader">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">{t('receipt.sourceEyebrow')}</p>
+              <h2>{t('receipt.sourceTitle')}</h2>
             </div>
+          </div>
 
-            <div className="receipt-source-actions">
-              <label className="receipt-file-field">
-                <input
-                  type="file"
-                  accept="image/*"
-                  disabled={isReading || isParsing}
-                  onChange={(event) =>
-                    handleFileChange(event.currentTarget.files?.[0] ?? null)
-                  }
-                />
-                <span>{t('receipt.chooseImage')}</span>
-              </label>
+          <div className="receipt-source-actions">
+            <label className="receipt-file-field">
+              <input
+                type="file"
+                accept="image/*"
+                disabled={isReading || isParsing}
+                onChange={(event) =>
+                  handleFileChange(event.currentTarget.files?.[0] ?? null)
+                }
+              />
+              <span>{t('receipt.chooseImage')}</span>
+            </label>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={isCameraOpen ? stopCamera : startCamera}
+              disabled={isReading || isParsing}
+            >
+              {isCameraOpen ? t('receipt.stopCamera') : t('receipt.startCamera')}
+            </button>
+          </div>
+
+          {isCameraOpen ? (
+            <div className="receipt-camera-panel">
+              <video
+                ref={videoRef}
+                className="receipt-camera-preview"
+                playsInline
+                muted
+              />
               <button
                 type="button"
-                className="secondary-button"
-                onClick={isCameraOpen ? stopCamera : startCamera}
+                className="primary-button"
+                onClick={captureCameraImage}
                 disabled={isReading || isParsing}
               >
-                {isCameraOpen ? t('receipt.stopCamera') : t('receipt.startCamera')}
+                {t('receipt.capture')}
               </button>
             </div>
+          ) : null}
 
-            {isCameraOpen ? (
-              <div className="receipt-camera-panel">
-                <video
-                  ref={videoRef}
-                  className="receipt-camera-preview"
-                  playsInline
-                  muted
-                />
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={captureCameraImage}
-                  disabled={isReading || isParsing}
-                >
-                  {t('receipt.capture')}
-                </button>
-              </div>
-            ) : null}
+          {previewUrl ? (
+            <img
+              className="receipt-preview"
+              src={previewUrl}
+              alt={t('receipt.previewAlt')}
+            />
+          ) : (
+            <div className="receipt-placeholder">{t('receipt.noImage')}</div>
+          )}
 
-            {previewUrl ? (
-              <img
-                className="receipt-preview"
-                src={previewUrl}
-                alt={t('receipt.previewAlt')}
-              />
-            ) : (
-              <div className="receipt-placeholder">{t('receipt.noImage')}</div>
-            )}
+          {isReading ? (
+            <div className="receipt-progress" aria-live="polite">
+              <span>{progressLabel || t('receipt.ocrProcessing')}</span>
+              <strong>{progress}%</strong>
+            </div>
+          ) : null}
+        </div>
 
-            {isReading ? (
-              <div className="receipt-progress" aria-live="polite">
-                <span>{progressLabel || t('receipt.ocrProcessing')}</span>
-                <strong>{progress}%</strong>
-              </div>
-            ) : null}
+        <div className="panel receipt-text-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">{t('receipt.textEyebrow')}</p>
+              <h2>{t('receipt.textTitle')}</h2>
+            </div>
+            <button
+              type="button"
+              className="small-button"
+              onClick={handleParseText}
+              disabled={isReading || isParsing || !ocrText.trim()}
+            >
+              {isParsing ? t('receipt.parsing') : t('receipt.reparse')}
+            </button>
           </div>
 
-          <div className="panel receipt-text-panel">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t('receipt.textEyebrow')}</p>
-                <h2>{t('receipt.textTitle')}</h2>
-              </div>
+          <textarea
+            value={ocrText}
+            onChange={(event) => setOcrText(event.target.value)}
+            placeholder={t('receipt.textPlaceholder')}
+          />
+        </div>
+      </section>
+
+      {statusMessage ? (
+        <div className="status-message receipt-status" role="status">
+          <span>{statusMessage}</span>
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <p className="status-message" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+
+      {candidates.length ? (
+        <section className="panel receipt-candidates">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">{t('receipt.candidatesEyebrow')}</p>
+              <h2>{t('receipt.candidatesTitle')}</h2>
+            </div>
+            <div className="receipt-candidate-actions">
+              {allowManualCandidates ? (
+                <button
+                  type="button"
+                  className="secondary-button"
+                  onClick={addManualCandidate}
+                  disabled={isReading || isParsing}
+                >
+                  {t('receipt.addItem')}
+                </button>
+              ) : null}
               <button
                 type="button"
-                className="small-button"
-                onClick={handleParseText}
-                disabled={isReading || isParsing || !ocrText.trim()}
+                className="primary-button"
+                onClick={handleProceed}
+                disabled={isReading || isParsing}
               >
-                {isParsing ? t('receipt.parsing') : t('receipt.reparse')}
+                {t('receipt.proceedToDetail')}
               </button>
             </div>
+          </div>
 
-            <textarea
-              value={ocrText}
-              onChange={(event) => setOcrText(event.target.value)}
-              placeholder={t('receipt.textPlaceholder')}
-            />
+          <div className="receipt-candidate-list">
+            {candidates.map((item) => (
+              <article key={item.id} className="receipt-candidate">
+                <label className="receipt-check">
+                  <input
+                    type="checkbox"
+                    checked={item.selected}
+                    onChange={(event) =>
+                      updateCandidate(item.id, {
+                        selected: event.currentTarget.checked,
+                      })
+                    }
+                  />
+                  <span>{t('receipt.register')}</span>
+                </label>
+                <label>
+                  <span>{t('receipt.candidate.name')}</span>
+                  <input
+                    value={item.name}
+                    onChange={(event) =>
+                      updateCandidate(item.id, { name: event.target.value })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>{t('receipt.candidate.category')}</span>
+                  <input
+                    value={item.category}
+                    onChange={(event) =>
+                      updateCandidate(item.id, {
+                        category: event.target.value,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>{t('receipt.candidate.quantity')}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={item.quantity ?? ''}
+                    onChange={(event) =>
+                      updateCandidate(item.id, {
+                        quantity: event.target.value
+                          ? Number(event.target.value)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>{t('receipt.candidate.gram')}</span>
+                  <input
+                    type="number"
+                    min="0"
+                    value={item.gram ?? ''}
+                    onChange={(event) =>
+                      updateCandidate(item.id, {
+                        gram: event.target.value
+                          ? Number(event.target.value)
+                          : null,
+                      })
+                    }
+                  />
+                </label>
+                <label>
+                  <span>{t('receipt.candidate.expiration')}</span>
+                  <input
+                    type="date"
+                    value={item.expirationDate ?? ''}
+                    onChange={(event) =>
+                      updateCandidate(item.id, {
+                        expirationDate: event.target.value || null,
+                      })
+                    }
+                  />
+                </label>
+              </article>
+            ))}
           </div>
         </section>
-
-        {statusMessage ? (
-          <div className="status-message receipt-status" role="status">
-            <span>{statusMessage}</span>
+      ) : allowManualCandidates ? (
+        <section className="panel receipt-candidates">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">{t('receipt.candidatesEyebrow')}</p>
+              <h2>{t('receipt.manualTitle')}</h2>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={addManualCandidate}
+            >
+              {t('receipt.addItem')}
+            </button>
           </div>
-        ) : null}
-
-        {errorMessage ? (
-          <p className="status-message" role="alert">
-            {errorMessage}
+          <p className="empty-text">
+            {t('receipt.manualEmpty')}
           </p>
-        ) : null}
-
-        {candidates.length ? (
-          <section className="panel receipt-candidates">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t('receipt.candidatesEyebrow')}</p>
-                <h2>{t('receipt.candidatesTitle')}</h2>
-              </div>
-              <div className="receipt-candidate-actions">
-                {allowManualCandidates ? (
-                  <button
-                    type="button"
-                    className="secondary-button"
-                    onClick={addManualCandidate}
-                    disabled={isReading || isParsing}
-                  >
-                    {t('receipt.addItem')}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="primary-button"
-                  onClick={handleProceed}
-                  disabled={isReading || isParsing}
-                >
-                  {t('receipt.proceedToDetail')}
-                </button>
-              </div>
-            </div>
-
-            <div className="receipt-candidate-list">
-              {candidates.map((item) => (
-                <article key={item.id} className="receipt-candidate">
-                  <label className="receipt-check">
-                    <input
-                      type="checkbox"
-                      checked={item.selected}
-                      onChange={(event) =>
-                        updateCandidate(item.id, {
-                          selected: event.currentTarget.checked,
-                        })
-                      }
-                    />
-                    <span>{t('receipt.register')}</span>
-                  </label>
-                  <label>
-                    <span>{t('receipt.candidate.name')}</span>
-                    <input
-                      value={item.name}
-                      onChange={(event) =>
-                        updateCandidate(item.id, { name: event.target.value })
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>{t('receipt.candidate.category')}</span>
-                    <input
-                      value={item.category}
-                      onChange={(event) =>
-                        updateCandidate(item.id, {
-                          category: event.target.value,
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>{t('receipt.candidate.quantity')}</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={item.quantity ?? ''}
-                      onChange={(event) =>
-                        updateCandidate(item.id, {
-                          quantity: event.target.value
-                            ? Number(event.target.value)
-                            : null,
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>{t('receipt.candidate.gram')}</span>
-                    <input
-                      type="number"
-                      min="0"
-                      value={item.gram ?? ''}
-                      onChange={(event) =>
-                        updateCandidate(item.id, {
-                          gram: event.target.value
-                            ? Number(event.target.value)
-                            : null,
-                        })
-                      }
-                    />
-                  </label>
-                  <label>
-                    <span>{t('receipt.candidate.expiration')}</span>
-                    <input
-                      type="date"
-                      value={item.expirationDate ?? ''}
-                      onChange={(event) =>
-                        updateCandidate(item.id, {
-                          expirationDate: event.target.value || null,
-                        })
-                      }
-                    />
-                  </label>
-                </article>
-              ))}
-            </div>
-          </section>
-        ) : allowManualCandidates ? (
-          <section className="panel receipt-candidates">
-            <div className="section-heading">
-              <div>
-                <p className="eyebrow">{t('receipt.candidatesEyebrow')}</p>
-                <h2>{t('receipt.manualTitle')}</h2>
-              </div>
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={addManualCandidate}
-              >
-                {t('receipt.addItem')}
-              </button>
-            </div>
-            <p className="empty-text">
-              {t('receipt.manualEmpty')}
-            </p>
-          </section>
-        ) : null}
+        </section>
+      ) : null}
     </main>
   )
 

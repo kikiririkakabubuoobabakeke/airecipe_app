@@ -24,6 +24,7 @@ function getDaysForCategory(category: string) {
     case '魚':
       return 2
     case '野菜':
+    case '果物':
       return 5
     case '乳製品':
       return 7
@@ -43,6 +44,9 @@ function addDays(dateStr: string, days: number) {
 function normalizeCategory(category: string) {
   if (category === '肉' || category === '魚' || category === '卵') {
     return '肉・卵・魚'
+  }
+  if (category === 'フルーツ') {
+    return '果物'
   }
 
   return category
@@ -87,6 +91,7 @@ export function ReceiptDetailRegisterPage({
   const categories = [
     { value: '肉・卵・魚', label: t('category.meatEggFish') },
     { value: '野菜', label: t('category.vegetable') },
+    { value: '果物', label: t('category.fruit') },
     { value: '乳製品', label: t('category.dairy') },
     { value: '加工品', label: t('category.processed') },
     { value: 'その他', label: t('category.other') },
@@ -140,203 +145,203 @@ export function ReceiptDetailRegisterPage({
 
   const content = (
     <main className={`receipt-detail-page ${embedded ? 'receipt-detail-page--embedded' : ''}`}>
-        {/* Back Link */}
-        <div className="back-link-wrapper">
-          <button type="button" className="back-text-button" onClick={onBack}>
-            <span className="arrow-left">←</span> {t('receiptDetail.back')}
+      {/* Back Link */}
+      <div className="back-link-wrapper">
+        <button type="button" className="back-text-button" onClick={onBack}>
+          <span className="arrow-left">←</span> {t('receiptDetail.back')}
+        </button>
+      </div>
+
+      {/* Header */}
+      <div className="detail-header">
+        <h1>{t('receiptDetail.title')}</h1>
+        <p className="subtitle">
+          {t('receiptDetail.subtitle')}
+        </p>
+      </div>
+
+      {/* Step Navigation Bar */}
+      <div className="step-bar">
+        <div className="step-item completed">
+          <span className="step-number">✓</span>
+          <span className="step-label">{t('receiptDetail.stepRegister')}</span>
+        </div>
+        <div className="step-connector"></div>
+        <div className="step-item active">
+          <span className="step-number">2</span>
+          <span className="step-label">{t('receiptDetail.stepDetail')}</span>
+        </div>
+      </div>
+
+      {/* Status Messages */}
+      {statusMessage && (
+        <div className="status-message success-message" role="status">
+          <span>{statusMessage}</span>
+          <button
+            type="button"
+            className="primary-button inline-fridge-button"
+            onClick={() => onNavigate('fridge')}
+          >
+            {t('receiptDetail.viewInventory')}
           </button>
         </div>
+      )}
 
-        {/* Header */}
-        <div className="detail-header">
-          <h1>{t('receiptDetail.title')}</h1>
-          <p className="subtitle">
-            {t('receiptDetail.subtitle')}
-          </p>
+      {errorMessage && (
+        <div className="status-message error-message" role="alert">
+          <span>{errorMessage}</span>
         </div>
+      )}
 
-        {/* Step Navigation Bar */}
-        <div className="step-bar">
-          <div className="step-item completed">
-            <span className="step-number">✓</span>
-            <span className="step-label">{t('receiptDetail.stepRegister')}</span>
+      {/* Main Editable Items List */}
+      {!statusMessage && (
+        <div className="panel detail-form-panel">
+          <div className="panel-header">
+            <h2>{t('receiptDetail.formTitle')}</h2>
+            <p className="panel-lead">
+              {t('receiptDetail.formLead')}
+            </p>
           </div>
-          <div className="step-connector"></div>
-          <div className="step-item active">
-            <span className="step-number">2</span>
-            <span className="step-label">{t('receiptDetail.stepDetail')}</span>
-          </div>
-        </div>
 
-        {/* Status Messages */}
-        {statusMessage && (
-          <div className="status-message success-message" role="status">
-            <span>{statusMessage}</span>
-            <button
-              type="button"
-              className="primary-button inline-fridge-button"
-              onClick={() => onNavigate('fridge')}
-            >
-              {t('receiptDetail.viewInventory')}
-            </button>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="status-message error-message" role="alert">
-            <span>{errorMessage}</span>
-          </div>
-        )}
-
-        {/* Main Editable Items List */}
-        {!statusMessage && (
-          <div className="panel detail-form-panel">
-            <div className="panel-header">
-              <h2>{t('receiptDetail.formTitle')}</h2>
-              <p className="panel-lead">
-                {t('receiptDetail.formLead')}
-              </p>
+          {formData.length > 0 && (
+            <div className="summary-banner">
+              {t('receiptDetail.summary', { count: formData.length })}
             </div>
+          )}
 
-            {formData.length > 0 && (
-              <div className="summary-banner">
-                {t('receiptDetail.summary', { count: formData.length })}
-              </div>
-            )}
+          {formData.length === 0 ? (
+            <p className="empty-text">{t('receiptDetail.empty')}</p>
+          ) : (
+            <div className="detail-cards-list">
+              {formData.map((item, index) => (
+                <div key={item.id || index} className="detail-card">
+                  <div className="card-index-title">
+                    {t('receiptDetail.itemLabel', { number: index + 1 })}
+                  </div>
 
-            {formData.length === 0 ? (
-              <p className="empty-text">{t('receiptDetail.empty')}</p>
-            ) : (
-              <div className="detail-cards-list">
-                {formData.map((item, index) => (
-                  <div key={item.id || index} className="detail-card">
-                    <div className="card-index-title">
-                      {t('receiptDetail.itemLabel', { number: index + 1 })}
+                  <div className="card-fields-grid">
+                    {/* Name */}
+                    <div className="field-group">
+                      <label>
+                        {t('receiptDetail.name')}<span className="required">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={item.name}
+                        onChange={(e) => handleChange(index, 'name', e.target.value)}
+                        placeholder={t('receiptDetail.namePlaceholder')}
+                        required
+                      />
                     </div>
 
-                    <div className="card-fields-grid">
-                      {/* Name */}
-                      <div className="field-group">
-                        <label>
-                          {t('receiptDetail.name')}<span className="required">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          value={item.name}
-                          onChange={(e) => handleChange(index, 'name', e.target.value)}
-                          placeholder={t('receiptDetail.namePlaceholder')}
+                    {/* Category */}
+                    <div className="field-group">
+                      <label>
+                        {t('receiptDetail.category')}<span className="required">*</span>
+                      </label>
+                      <div className="select-wrapper">
+                        <select
+                          value={item.category}
+                          onChange={(e) => handleChange(index, 'category', e.target.value)}
                           required
-                        />
+                        >
+                          <option value="" disabled>{t('receiptDetail.categorySelect')}</option>
+                          {categories.map((cat) => (
+                            <option key={cat.value} value={cat.value}>
+                              {cat.label}
+                            </option>
+                          ))}
+                        </select>
                       </div>
+                    </div>
 
-                      {/* Category */}
-                      <div className="field-group">
-                        <label>
-                          {t('receiptDetail.category')}<span className="required">*</span>
-                        </label>
-                        <div className="select-wrapper">
-                          <select
-                            value={item.category}
-                            onChange={(e) => handleChange(index, 'category', e.target.value)}
-                            required
-                          >
-                            <option value="" disabled>{t('receiptDetail.categorySelect')}</option>
-                            {categories.map((cat) => (
-                              <option key={cat.value} value={cat.value}>
-                                {cat.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
+                    {/* Quantity */}
+                    <div className="field-group">
+                      <label>
+                        {t('receiptDetail.quantity')}<span className="required">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={item.quantity ?? 1}
+                        onChange={(e) => handleChange(index, 'quantity', e.target.value ? Number(e.target.value) : 1)}
+                        required
+                      />
+                    </div>
 
-                      {/* Quantity */}
-                      <div className="field-group">
-                        <label>
-                          {t('receiptDetail.quantity')}<span className="required">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.quantity ?? 1}
-                          onChange={(e) => handleChange(index, 'quantity', e.target.value ? Number(e.target.value) : 1)}
-                          required
-                        />
-                      </div>
+                    {/* Gram / ml */}
+                    <div className="field-group">
+                      <label>{t('receiptDetail.gram')}</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={item.gram ?? ''}
+                        onChange={(e) => handleChange(index, 'gram', e.target.value ? Number(e.target.value) : null)}
+                        placeholder={t('receiptDetail.gramPlaceholder')}
+                      />
+                    </div>
 
-                      {/* Gram / ml */}
-                      <div className="field-group">
-                        <label>{t('receiptDetail.gram')}</label>
-                        <input
-                          type="number"
-                          min="0"
-                          value={item.gram ?? ''}
-                          onChange={(e) => handleChange(index, 'gram', e.target.value ? Number(e.target.value) : null)}
-                          placeholder={t('receiptDetail.gramPlaceholder')}
-                        />
-                      </div>
+                    {/* Best Before Date */}
+                    <div className="field-group">
+                      <label>{t('receiptDetail.bestBefore')}</label>
+                      <input
+                        type="date"
+                        value={item.bestBeforeDate}
+                        onChange={(e) => handleChange(index, 'bestBeforeDate', e.target.value)}
+                      />
+                    </div>
 
-                      {/* Best Before Date */}
-                      <div className="field-group">
-                        <label>{t('receiptDetail.bestBefore')}</label>
-                        <input
-                          type="date"
-                          value={item.bestBeforeDate}
-                          onChange={(e) => handleChange(index, 'bestBeforeDate', e.target.value)}
-                        />
-                      </div>
+                    {/* Expiration Date */}
+                    <div className="field-group">
+                      <label>{t('receiptDetail.expiration')}</label>
+                      <input
+                        type="date"
+                        value={item.expirationDate}
+                        onChange={(e) => handleChange(index, 'expirationDate', e.target.value)}
+                      />
+                    </div>
 
-                      {/* Expiration Date */}
-                      <div className="field-group">
-                        <label>{t('receiptDetail.expiration')}</label>
-                        <input
-                          type="date"
-                          value={item.expirationDate}
-                          onChange={(e) => handleChange(index, 'expirationDate', e.target.value)}
-                        />
-                      </div>
-
-                      {/* Memo */}
-                      <div className="field-group full-width">
-                        <label>{t('receiptDetail.memo')}</label>
-                        <textarea
-                          rows={2}
-                          value={item.memo}
-                          onChange={(e) => handleChange(index, 'memo', e.target.value)}
-                          placeholder={t('receiptDetail.memoPlaceholder')}
-                        />
-                      </div>
+                    {/* Memo */}
+                    <div className="field-group full-width">
+                      <label>{t('receiptDetail.memo')}</label>
+                      <textarea
+                        rows={2}
+                        value={item.memo}
+                        onChange={(e) => handleChange(index, 'memo', e.target.value)}
+                        placeholder={t('receiptDetail.memoPlaceholder')}
+                      />
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                </div>
+              ))}
+            </div>
+          )}
 
-            {/* Bottom Actions */}
-            {formData.length > 0 && (
-              <div className="detail-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={onBack}
-                  disabled={isSubmitting}
-                >
-                  {t('common.back')}
-                </button>
-                <button
-                  type="button"
-                  className="primary-button submit-detail-button"
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting
-                    ? t('receiptDetail.submitting')
-                    : t('receiptDetail.submit')}
-                </button>
-              </div>
-            )}
-          </div>
-        )}
+          {/* Bottom Actions */}
+          {formData.length > 0 && (
+            <div className="detail-actions">
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={onBack}
+                disabled={isSubmitting}
+              >
+                {t('common.back')}
+              </button>
+              <button
+                type="button"
+                className="primary-button submit-detail-button"
+                onClick={handleSubmit}
+                disabled={isSubmitting}
+              >
+                {isSubmitting
+                  ? t('receiptDetail.submitting')
+                  : t('receiptDetail.submit')}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </main>
   )
 

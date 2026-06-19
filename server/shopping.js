@@ -61,7 +61,7 @@ function sanitizeShoppingListPayload(payload) {
 
 function mapShoppingList(row) {
   return {
-    shoppingListId: row.shopping_list_id,
+    shoppingListId: row.shopping_id,
     name: row.name,
     itemCount: row.item_count ?? 0,
     createdAt: row.created_at,
@@ -87,27 +87,27 @@ export async function getShoppingListsForUser(requestedUserId) {
   const client = ensureSupabase()
 
   const { data, error } = await client
-    .from('shopping_lists')
+    .from('shopping')
     .select(
       `
-      shopping_list_id,
+      shopping_id,
       name,
       created_at,
       updated_at,
-      shopping_list_items (count)
+      shopping_items (count)
     `,
     )
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
 
   if (error) {
-    throw new Error(`Failed to fetch shopping lists: ${error.message}`)
+    throw new Error(`Failed to fetch shopping: ${error.message}`)
   }
 
   return {
     userId,
     shoppingLists: (data ?? []).map((row) =>
-      mapShoppingList({ ...row, item_count: row.shopping_list_items?.[0]?.count ?? 0 }),
+      mapShoppingList({ ...row, item_count: row.shopping_items?.[0]?.count ?? 0 }),
     ),
   }
 }
@@ -121,10 +121,10 @@ export async function getShoppingListForUser(requestedUserId, shoppingListId) {
   }
 
   const { data: list, error: listError } = await client
-    .from('shopping_lists')
-    .select('shopping_list_id, name, created_at, updated_at')
+    .from('shopping')
+    .select('shopping_id, name, created_at, updated_at')
     .eq('user_id', userId)
-    .eq('shopping_list_id', shoppingListId)
+    .eq('shopping_id', shoppingListId)
     .maybeSingle()
 
   if (listError) {
@@ -136,9 +136,9 @@ export async function getShoppingListForUser(requestedUserId, shoppingListId) {
   }
 
   const { data: items, error: itemsError } = await client
-    .from('shopping_list_items')
+    .from('shopping_items')
     .select('item_id, name, category, quantity, gram, memo, checked, sort_order')
-    .eq('shopping_list_id', shoppingListId)
+    .eq('shopping_id', shoppingListId)
     .order('sort_order', { ascending: true })
 
   if (itemsError) {
@@ -160,9 +160,9 @@ export async function createShoppingListForUser({ userId: requestedUserId, paylo
   const { name, items } = sanitizeShoppingListPayload(payload)
 
   const { data: list, error: listError } = await client
-    .from('shopping_lists')
+    .from('shopping')
     .insert({ user_id: userId, name })
-    .select('shopping_list_id, name, created_at, updated_at')
+    .select('shopping_id, name, created_at, updated_at')
     .single()
 
   if (listError) {
@@ -171,10 +171,10 @@ export async function createShoppingListForUser({ userId: requestedUserId, paylo
 
   if (items.length > 0) {
     const { error: itemsError } = await client
-      .from('shopping_list_items')
+      .from('shopping_items')
       .insert(
         items.map((item) => ({
-          shopping_list_id: list.shopping_list_id,
+          shopping_id: list.shopping_id,
           ...item,
         })),
       )
@@ -184,7 +184,7 @@ export async function createShoppingListForUser({ userId: requestedUserId, paylo
     }
   }
 
-  return getShoppingListForUser(userId, list.shopping_list_id)
+  return getShoppingListForUser(userId, list.shopping_id)
 }
 
 export async function updateShoppingListForUser({
@@ -202,19 +202,19 @@ export async function updateShoppingListForUser({
   const { name, items } = sanitizeShoppingListPayload(payload)
 
   const { error: listError } = await client
-    .from('shopping_lists')
+    .from('shopping')
     .update({ name, updated_at: new Date().toISOString() })
     .eq('user_id', userId)
-    .eq('shopping_list_id', shoppingListId)
+    .eq('shopping_id', shoppingListId)
 
   if (listError) {
     throw new Error(`Failed to update shopping list: ${listError.message}`)
   }
 
   const { error: deleteError } = await client
-    .from('shopping_list_items')
+    .from('shopping_items')
     .delete()
-    .eq('shopping_list_id', shoppingListId)
+    .eq('shopping_id', shoppingListId)
 
   if (deleteError) {
     throw new Error(`Failed to update shopping list items: ${deleteError.message}`)
@@ -222,10 +222,10 @@ export async function updateShoppingListForUser({
 
   if (items.length > 0) {
     const { error: itemsError } = await client
-      .from('shopping_list_items')
+      .from('shopping_items')
       .insert(
         items.map((item) => ({
-          shopping_list_id: shoppingListId,
+          shopping_id: shoppingListId,
           ...item,
         })),
       )
@@ -247,10 +247,10 @@ export async function deleteShoppingListForUser({ userId: requestedUserId, shopp
   }
 
   const { error } = await client
-    .from('shopping_lists')
+    .from('shopping')
     .delete()
     .eq('user_id', userId)
-    .eq('shopping_list_id', shoppingListId)
+    .eq('shopping_id', shoppingListId)
 
   if (error) {
     throw new Error(`Failed to delete shopping list: ${error.message}`)

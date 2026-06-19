@@ -12,6 +12,7 @@
     opacity: 0;
     transform: translateY(4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -45,32 +46,63 @@
     opacity: 0;
     transform: translateY(3px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-.card-stagger > * {
+.card-stagger>* {
   animation: contentFadeIn 0.22s ease both;
 }
 
-.card-stagger > *:nth-child(1) { animation-delay: 0ms; }
-.card-stagger > *:nth-child(2) { animation-delay: 24ms; }
-.card-stagger > *:nth-child(3) { animation-delay: 48ms; }
-.card-stagger > *:nth-child(4) { animation-delay: 72ms; }
-.card-stagger > *:nth-child(5) { animation-delay: 96ms; }
-.card-stagger > *:nth-child(6) { animation-delay: 120ms; }
-.card-stagger > *:nth-child(7) { animation-delay: 144ms; }
-.card-stagger > *:nth-child(8) { animation-delay: 168ms; }
+.card-stagger>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.card-stagger>*:nth-child(2) {
+  animation-delay: 24ms;
+}
+
+.card-stagger>*:nth-child(3) {
+  animation-delay: 48ms;
+}
+
+.card-stagger>*:nth-child(4) {
+  animation-delay: 72ms;
+}
+
+.card-stagger>*:nth-child(5) {
+  animation-delay: 96ms;
+}
+
+.card-stagger>*:nth-child(6) {
+  animation-delay: 120ms;
+}
+
+.card-stagger>*:nth-child(7) {
+  animation-delay: 144ms;
+}
+
+.card-stagger>*:nth-child(8) {
+  animation-delay: 168ms;
+}
 
 .content-loading-pulse {
   animation: skeletonPulse 1.6s ease-in-out infinite;
 }
 
 @keyframes skeletonPulse {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 0.7; }
+
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .content-loading-block {
@@ -2022,7 +2054,7 @@ button:disabled {
   margin: 0;
 }
 
-.settings-fieldset legend + * {
+.settings-fieldset legend+* {
   clear: both;
 }
 
@@ -2103,7 +2135,7 @@ button:disabled {
   background: transparent;
 }
 
-.settings-field--inline > span {
+.settings-field--inline>span {
   min-width: 0;
   overflow-wrap: anywhere;
 }
@@ -2449,7 +2481,7 @@ button:disabled {
     overflow: visible;
     padding-bottom: 0;
   }
-  
+
   .hero-actions .primary-button,
   .hero-actions .secondary-button {
     font-size: 13px;
@@ -2460,8 +2492,8 @@ button:disabled {
     white-space: nowrap;
   }
 
-  .summary-grid{
-    grid-template-columns: repeat(2,1fr);
+  .summary-grid {
+    grid-template-columns: repeat(2, 1fr);
     gap: 0.75rem;
   }
 
@@ -2836,6 +2868,7 @@ button:disabled {
 }
 
 @media (max-width: 920px) {
+
   .fridge-filter-bar,
   .fridge-filter-options {
     grid-template-columns: 1fr;
@@ -3515,7 +3548,7 @@ button:disabled {
 
 .ingredient-detail-total {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
   gap: var(--cluster-gap);
   margin-top: var(--space-5);
 }
@@ -3550,13 +3583,13 @@ button:disabled {
   background: #fff;
 }
 
-.ingredient-detail-item > div:first-child {
+.ingredient-detail-item>div:first-child {
   display: flex;
   justify-content: space-between;
   gap: 10px;
 }
 
-.ingredient-detail-item > div:first-child span {
+.ingredient-detail-item>div:first-child span {
   color: var(--muted);
   font-size: 13px;
   font-weight: 700;
@@ -3581,6 +3614,10 @@ button:disabled {
   font-size: 13px;
   font-weight: 700;
   overflow-wrap: anywhere;
+}
+
+.ingredient-detail-item dl .detail-item-memo {
+  grid-column: span 1;
 }
 
 .ingredient-form-grid {
@@ -3675,22 +3712,85 @@ button:disabled {
   }
 
   .fridge-summary {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .fridge-table th,
   .fridge-table td {
-    padding: 12px 14px;
+    padding: 10px 6px;
     font-size: 13px;
+    min-width: 0 !important;
+  }
+
+  /* Mobile column filtering and compression */
+  .category-table-wrapper .col-quantity,
+  .category-table-wrapper .col-weight,
+  .category-table-wrapper .col-expiration,
+  .category-table-wrapper .col-memo {
+    display: none;
+  }
+
+  .category-table-wrapper[data-category="野菜"] .col-expiration {
+    display: table-cell;
+  }
+
+  .category-table-wrapper[data-category="野菜"] .col-best-before {
+    display: none;
+  }
+
+  .fridge-table .col-select {
+    width: 40px !important;
+    min-width: 40px !important;
+    padding: 10px 2px !important;
+  }
+
+  .fridge-table .col-ingredient {
+    width: 33.33% !important;
+    min-width: 0 !important;
+    text-align: left;
+  }
+
+  .fridge-table .col-best-before,
+  .fridge-table .col-expiration {
+    width: 33.33% !important;
+    min-width: 0 !important;
+    text-align: center;
+  }
+
+  .fridge-table .col-actions {
+    width: 33.33% !important;
+    min-width: 0 !important;
+    text-align: center;
+  }
+
+  .fridge-row-actions {
+    display: flex;
+    justify-content: center;
+  }
+
+  .fridge-row-actions .small-button {
+    width: 100% !important;
+    max-width: 90px;
+    min-height: 32px;
+    padding: 0 4px;
+    font-size: 12px;
+    text-align: center;
   }
 
   .ingredient-form-grid {
     grid-template-columns: 1fr;
   }
 
-  .ingredient-detail-total,
+  .ingredient-detail-total {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .ingredient-detail-item dl {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ingredient-detail-item dl .detail-item-memo {
+    grid-column: span 2;
   }
 
   .fridge-row-actions .small-button {
@@ -4463,6 +4563,7 @@ button:disabled {
     opacity: 0;
     transform: translateY(-4px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -4584,6 +4685,7 @@ button:disabled {
 .fridge-table tr.expired-row {
   background-color: rgba(var(--danger-rgb), 0.05);
 }
+
 .fridge-table tr.expired-row:hover {
   background-color: rgba(var(--danger-rgb), 0.09);
 }
@@ -4604,6 +4706,7 @@ button:disabled {
   0% {
     background-color: rgba(var(--warning-rgb), 0.34);
   }
+
   100% {
     background-color: transparent;
   }
@@ -4613,6 +4716,7 @@ button:disabled {
   0% {
     background-color: rgba(var(--danger-rgb), 0.28);
   }
+
   100% {
     background-color: transparent;
   }
@@ -4631,6 +4735,7 @@ button:disabled {
   cursor: pointer;
   user-select: none;
 }
+
 .summary-card.clickable:active {
   transform: scale(0.995);
 }
