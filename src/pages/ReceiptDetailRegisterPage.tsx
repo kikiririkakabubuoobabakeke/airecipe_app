@@ -24,6 +24,7 @@ function getDaysForCategory(category: string) {
     case '魚':
       return 2
     case '野菜':
+    case '果物':
       return 5
     case '乳製品':
       return 7
@@ -43,6 +44,9 @@ function addDays(dateStr: string, days: number) {
 function normalizeCategory(category: string) {
   if (category === '肉' || category === '魚' || category === '卵') {
     return '肉・卵・魚'
+  }
+  if (category === 'フルーツ') {
+    return '果物'
   }
 
   return category
@@ -87,6 +91,7 @@ export function ReceiptDetailRegisterPage({
   const categories = [
     { value: '肉・卵・魚', label: t('category.meatEggFish') },
     { value: '野菜', label: t('category.vegetable') },
+    { value: '果物', label: t('category.fruit') },
     { value: '乳製品', label: t('category.dairy') },
     { value: '加工品', label: t('category.processed') },
     { value: 'その他', label: t('category.other') },
