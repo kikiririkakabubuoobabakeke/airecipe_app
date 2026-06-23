@@ -1,4 +1,3 @@
-import { deleteJson, getJson, patchJson, postJson } from './apiClient'
 import type { ShoppingList, ShoppingListItem, ShoppingListSummary } from '../types/ui'
 
 const localShoppingListsKey = 'ai-recipe-shopping-lists'
@@ -51,7 +50,7 @@ function sortLists(lists: ShoppingList[]) {
   )
 }
 
-function normalizeLocalItem(item: ShoppingListItem, index: number): ShoppingListItem {
+function normalizeItem(item: ShoppingListItem, index: number): ShoppingListItem {
   return {
     itemId: item.itemId ?? `local-item-${Date.now()}-${index}`,
     name: item.name,
@@ -72,7 +71,7 @@ function createLocalShoppingList(input: ShoppingListInput) {
     itemCount: input.items.length,
     createdAt: now,
     updatedAt: now,
-    items: input.items.map(normalizeLocalItem),
+    items: input.items.map(normalizeItem),
   }
   const lists = sortLists([shoppingList, ...readLocalShoppingLists()])
   writeLocalShoppingLists(lists)
@@ -95,7 +94,7 @@ function updateLocalShoppingList(shoppingListId: string, input: ShoppingListInpu
     name: input.name,
     itemCount: input.items.length,
     updatedAt: new Date().toISOString(),
-    items: input.items.map(normalizeLocalItem),
+    items: input.items.map(normalizeItem),
   }
   const nextLists = sortLists(
     lists.map((list) =>
@@ -111,70 +110,35 @@ function updateLocalShoppingList(shoppingListId: string, input: ShoppingListInpu
 }
 
 export async function fetchShoppingLists() {
-  try {
-    return await getJson<{
-      userId: string
-      shoppingLists: ShoppingListSummary[]
-    }>('/api/shopping-lists')
-  } catch {
-    const shoppingLists = sortLists(readLocalShoppingLists()).map(toSummary)
-    return { userId: 'local', shoppingLists }
-  }
+  const shoppingLists = sortLists(readLocalShoppingLists()).map(toSummary)
+  return { userId: 'local', shoppingLists }
 }
 
 export async function fetchShoppingList(shoppingListId: string) {
-  try {
-    return await getJson<{
-      userId: string
-      shoppingList: ShoppingList
-    }>(`/api/shopping-lists/${encodeURIComponent(shoppingListId)}`)
-  } catch {
-    const shoppingList = readLocalShoppingLists().find(
-      (list) => list.shoppingListId === shoppingListId,
-    )
-    if (!shoppingList) {
-      throw new Error('Shopping list not found')
-    }
-    return { userId: 'local', shoppingList }
+  const shoppingList = readLocalShoppingLists().find(
+    (list) => list.shoppingListId === shoppingListId,
+  )
+  if (!shoppingList) {
+    throw new Error('Shopping list not found')
   }
+  return { userId: 'local', shoppingList }
 }
 
 export async function createShoppingList(input: ShoppingListInput) {
-  try {
-    return await postJson<{
-      userId: string
-      shoppingList: ShoppingList
-    }>('/api/shopping-lists', input)
-  } catch {
-    return createLocalShoppingList(input)
-  }
+  return createLocalShoppingList(input)
 }
 
 export async function updateShoppingList(
   shoppingListId: string,
   input: ShoppingListInput,
 ) {
-  try {
-    return await patchJson<{
-      userId: string
-      shoppingList: ShoppingList
-    }>(`/api/shopping-lists/${encodeURIComponent(shoppingListId)}`, input)
-  } catch {
-    return updateLocalShoppingList(shoppingListId, input)
-  }
+  return updateLocalShoppingList(shoppingListId, input)
 }
 
 export async function deleteShoppingList(shoppingListId: string) {
-  try {
-    return await deleteJson<{
-      userId: string
-      shoppingLists: ShoppingListSummary[]
-    }>(`/api/shopping-lists/${encodeURIComponent(shoppingListId)}`)
-  } catch {
-    const lists = readLocalShoppingLists().filter(
-      (list) => list.shoppingListId !== shoppingListId,
-    )
-    writeLocalShoppingLists(lists)
-    return { userId: 'local', shoppingLists: sortLists(lists).map(toSummary) }
-  }
+  const lists = readLocalShoppingLists().filter(
+    (list) => list.shoppingListId !== shoppingListId,
+  )
+  writeLocalShoppingLists(lists)
+  return { userId: 'local', shoppingLists: sortLists(lists).map(toSummary) }
 }
