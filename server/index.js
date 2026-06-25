@@ -51,6 +51,14 @@ import {
   sendContactReplyForAdmin,
   submitContactMessageForUser,
 } from './contact.js'
+import {
+  createShoppingListForUser,
+  deleteShoppingListForUser,
+  getShoppingListForUser,
+  getShoppingListsForUser,
+  importShoppingListToInventoryForUser,
+  updateShoppingListForUser,
+} from './shopping.js'
 import { checkSupabaseConnection } from './supabase.js'
 
 const port = Number(process.env.PORT ?? 8787)
@@ -386,6 +394,52 @@ export async function handleApiRequest(request, response) {
   if (request.method === 'PATCH' && url.pathname === '/api/preferences') {
     await handlePreferencesUpdate(request, response, authUser.id)
     return
+  }
+
+  if (request.method === 'GET' && url.pathname === '/api/shopping-lists') {
+    await handleShoppingLists(authUser.id, response)
+    return
+  }
+
+  if (request.method === 'POST' && url.pathname === '/api/shopping-lists') {
+    await handleShoppingListCreate(request, response, authUser.id)
+    return
+  }
+
+  const shoppingListImportMatch = url.pathname.match(
+    /^\/api\/shopping-lists\/([^/]+)\/import-to-inventory$/,
+  )
+  if (request.method === 'POST' && shoppingListImportMatch) {
+    await handleShoppingListImportToInventory(
+      request,
+      response,
+      authUser.id,
+      shoppingListImportMatch[1],
+    )
+    return
+  }
+
+  const shoppingListMatch = url.pathname.match(/^\/api\/shopping-lists\/([^/]+)$/)
+  if (shoppingListMatch) {
+    if (request.method === 'GET') {
+      await handleShoppingListDetail(authUser.id, response, shoppingListMatch[1])
+      return
+    }
+
+    if (request.method === 'PATCH') {
+      await handleShoppingListUpdate(
+        request,
+        response,
+        authUser.id,
+        shoppingListMatch[1],
+      )
+      return
+    }
+
+    if (request.method === 'DELETE') {
+      await handleShoppingListDelete(authUser.id, response, shoppingListMatch[1])
+      return
+    }
   }
 
   if (request.method === 'POST' && url.pathname === '/api/contact') {
@@ -970,6 +1024,142 @@ async function handlePreferencesUpdate(request, response, userId) {
       ok: false,
       message:
         error instanceof Error ? error.message : 'Preferences update failed',
+    })
+  }
+}
+
+async function handleShoppingLists(userId, response) {
+  try {
+    const result = await getShoppingListsForUser(userId)
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Shopping lists request failed',
+    })
+  }
+}
+
+async function handleShoppingListDetail(userId, response, shoppingListId) {
+  try {
+    const result = await getShoppingListForUser({
+      userId,
+      shoppingListId,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Shopping list request failed',
+    })
+  }
+}
+
+async function handleShoppingListCreate(request, response, userId) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await createShoppingListForUser({
+      userId,
+      name: body?.name,
+      items: body?.items,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Shopping list create failed',
+    })
+  }
+}
+
+async function handleShoppingListUpdate(
+  request,
+  response,
+  userId,
+  shoppingListId,
+) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await updateShoppingListForUser({
+      userId,
+      shoppingListId,
+      name: body?.name,
+      items: body?.items,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Shopping list update failed',
+    })
+  }
+}
+
+async function handleShoppingListDelete(userId, response, shoppingListId) {
+  try {
+    const result = await deleteShoppingListForUser({
+      userId,
+      shoppingListId,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error ? error.message : 'Shopping list delete failed',
+    })
+  }
+}
+
+async function handleShoppingListImportToInventory(
+  request,
+  response,
+  userId,
+  shoppingListId,
+) {
+  try {
+    const body = await readJsonBody(request)
+    const result = await importShoppingListToInventoryForUser({
+      userId,
+      shoppingListId,
+      itemIds: body?.itemIds,
+    })
+
+    sendJson(response, 200, {
+      ok: true,
+      ...result,
+    })
+  } catch (error) {
+    sendJson(response, 500, {
+      ok: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Shopping list import failed',
     })
   }
 }

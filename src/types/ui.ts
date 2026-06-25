@@ -117,6 +117,7 @@ export type ShoppingListItem = {
   category: string
   quantity: number | null
   gram: number | null
+  unit: string | null
   memo: string | null
   checked: boolean
   sortOrder?: number
@@ -126,6 +127,7 @@ export type ShoppingListSummary = {
   shoppingListId: string
   name: string
   itemCount: number
+  checkedCount?: number
   createdAt: string
   updatedAt: string
 }

@@ -1,40 +1,37 @@
 import {
   useEffect,
-  useState,
   useMemo,
   useRef,
+  useState,
   type FormEvent,
 } from 'react'
 import { Icon } from '../components/Icon'
-import { useI18n } from '../lib/useI18n'
 import { getCache, setCache } from '../lib/dataCache'
 import {
+  fetchCookingHistory,
   fetchInventory,
   fetchSavedRecipes,
-  fetchCookingHistory,
 } from '../lib/recipeApi'
 import {
   createShoppingList,
   deleteShoppingList,
-  fetchShoppingLists,
   fetchShoppingList,
+  fetchShoppingLists,
+  importShoppingListToInventory,
+  updateShoppingList,
 } from '../lib/shoppingApi'
+import { useI18n } from '../lib/useI18n'
 import type {
   AppDestination,
   Ingredient,
   Recipe,
-  ShoppingList,
+  ShoppingListItem,
   ShoppingListSummary,
 } from '../types/ui'
 
-type ShoppingItem = {
-  id: string
-  name: string
-  category: string
-  quantity: number | null 
-  gram: number | null     
-  isManual: boolean       
-  memo?: string           
+type ShoppingListPageProps = {
+  onNavigate: (page: AppDestination) => void
+  onLogout?: () => void | Promise<void>
 }
 
 type ManualShoppingForm = {
@@ -42,7 +39,13 @@ type ManualShoppingForm = {
   category: string
   quantity: string
   gram: string
+  unit: string
   memo: string
+}
+
+type RecipeCandidateItem = ShoppingListItem & {
+  itemId: string
+  alreadyAdded: boolean
 }
 
 const emptyManualShoppingForm: ManualShoppingForm = {
@@ -50,89 +53,117 @@ const emptyManualShoppingForm: ManualShoppingForm = {
   category: '',
   quantity: '',
   gram: '',
+  unit: '個',
   memo: '',
 }
 
+const CATEGORY_OTHER = 'other'
 const CATEGORY_MEAT_EGG_FISH = 'meatEggFish'
 const CATEGORY_VEGETABLE = 'vegetable'
 const CATEGORY_DAIRY = 'dairy'
 const CATEGORY_PROCESSED = 'processed'
-const CATEGORY_OTHER = 'other'
 
-const meatEggFishWords = [
-  '\u8089',
-  '\u9d8f',
-  '\u8c5a',
-  '\u725b',
-  '\u9b5a',
-  '\u5375',
-  '\u305f\u307e\u3054',
-  '\u30cf\u30e0',
-  '\u30bd\u30fc\u30bb\u30fc\u30b8',
-  'sausage',
-  'chicken',
-  'pork',
-  'beef',
-  'fish',
-  'egg',
-]
+const recipePageSize = 10
 
-const vegetableWords = [
-  '\u91ce\u83dc',
-  '\u7389\u306d\u304e',
-  '\u7389\u8471',
-  '\u306b\u3093\u3058\u3093',
-  '\u4eba\u53c2',
-  '\u30ad\u30e3\u30d9\u30c4',
-  '\u30ec\u30bf\u30b9',
-  '\u30c8\u30de\u30c8',
-  '\u304d\u306e\u3053',
-  '\u306d\u304e',
-  '\u3058\u3083\u304c\u3044\u3082',
-  '\u30d4\u30fc\u30de\u30f3',
-  'vegetable',
-]
+const categoryWords = {
+  [CATEGORY_MEAT_EGG_FISH]: [
+    '肉',
+    '鶏',
+    '豚',
+    '牛',
+    '魚',
+    '卵',
+    'たまご',
+    'ハム',
+    'ソーセージ',
+    'chicken',
+    'pork',
+    'beef',
+    'fish',
+    'egg',
+  ],
+  [CATEGORY_VEGETABLE]: [
+    '野菜',
+    '玉ねぎ',
+    '玉葱',
+    'にんじん',
+    '人参',
+    'キャベツ',
+    'レタス',
+    'トマト',
+    'きのこ',
+    'ねぎ',
+    'じゃがいも',
+    'ピーマン',
+    'vegetable',
+  ],
+  [CATEGORY_DAIRY]: [
+    '牛乳',
+    'チーズ',
+    'バター',
+    'ヨーグルト',
+    'milk',
+    'cheese',
+    'butter',
+    'yogurt',
+  ],
+  [CATEGORY_PROCESSED]: [
+    '加工',
+    '米',
+    'パン',
+    'パスタ',
+    '麺',
+    '豆腐',
+    '缶',
+    'rice',
+    'bread',
+    'pasta',
+  ],
+}
 
-const dairyWords = [
-  '\u725b\u4e73',
-  '\u30c1\u30fc\u30ba',
-  '\u30d0\u30bf\u30fc',
-  '\u30e8\u30fc\u30b0\u30eb\u30c8',
-  'milk',
-  'cheese',
-  'butter',
-  'yogurt',
-]
-
-const processedWords = [
-  '\u52a0\u5de5',
-  '\u7c73',
-  '\u30d1\u30f3',
-  '\u30d1\u30b9\u30bf',
-  '\u9eba',
-  '\u8c46\u8150',
-  '\u7f36',
-  'processed',
-  'rice',
-  'bread',
-  'pasta',
-]
-
-function inferCategory(name: string): string {
-  const n = name.toLowerCase()
-  if (meatEggFishWords.some((word) => n.includes(word))) {
-    return CATEGORY_MEAT_EGG_FISH
+function createItemId(prefix = 'shopping-item') {
+  if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+    return `${prefix}-${crypto.randomUUID()}`
   }
-  if (vegetableWords.some((word) => n.includes(word))) {
-    return CATEGORY_VEGETABLE
+
+  return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`
+}
+
+function normalizeName(name: string) {
+  return name.trim().toLowerCase()
+}
+
+function inferCategory(name: string) {
+  const normalized = normalizeName(name)
+
+  for (const [category, words] of Object.entries(categoryWords)) {
+    if (words.some((word) => normalized.includes(word.toLowerCase()))) {
+      return category
+    }
   }
-  if (dairyWords.some((word) => n.includes(word))) {
-    return CATEGORY_DAIRY
-  }
-  if (processedWords.some((word) => n.includes(word))) {
-    return CATEGORY_PROCESSED
-  }
+
   return CATEGORY_OTHER
+}
+
+function getNumber(value: string) {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? number : null
+}
+
+function isWeightUnit(unit: string | null | undefined) {
+  return unit === 'g' || unit === 'ml'
+}
+
+function formatItemAmount(item: Pick<ShoppingListItem, 'quantity' | 'gram' | 'unit'>) {
+  if (item.gram) {
+    return `${item.gram}${item.unit === 'ml' ? 'ml' : 'g'}`
+  }
+
+  if (item.quantity) {
+    return `${item.quantity}${item.unit || '個'}`
+  }
+
+  return '-'
 }
 
 function compareCategoryNames(left: string, right: string, language: string) {
@@ -141,55 +172,202 @@ function compareCategoryNames(left: string, right: string, language: string) {
   return left.localeCompare(right, language)
 }
 
-function getShoppingItemKey(name: string) {
-  return name.trim().toLowerCase()
+function getRecipeKey(recipe: Recipe) {
+  return recipe.recipeId || recipe.name
 }
 
-const RECIPE_PAGE_SIZE = 12
-
-export function ShoppingListPage({
-  onNavigate,
-}: {
-  onNavigate: (page: AppDestination) => void
-  onLogout?: () => void | Promise<void>
-}) {
+export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
   const { language, t } = useI18n()
-
-  const [fridgeIngredients, setFridgeIngredients] = useState<Ingredient[]>(() => {
-    const cached = getCache<Ingredient[]>(`inventory:${language}`)
-    return cached || []
-  })
-  const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [toastMessage, setToastMessage] = useState('')
   const toastTimerRef = useRef<number | null>(null)
 
-  const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(() => new Set())
-  const [isRecipeListOpen, setIsRecipeListOpen] = useState(true)
-  const [visibleRecipeCount, setVisibleRecipeCount] = useState(RECIPE_PAGE_SIZE)
-
-  const [manualItems, setManualItems] = useState<ShoppingItem[]>([])
+  const [inventory, setInventory] = useState<Ingredient[]>(() => {
+    return getCache<Ingredient[]>(`inventory:${language}`) ?? []
+  })
+  const [recipes, setRecipes] = useState<Recipe[]>([])
   const [savedLists, setSavedLists] = useState<ShoppingListSummary[]>([])
-  const [selectedSavedList, setSelectedSavedList] = useState<ShoppingList | null>(null)
-  const [isSaveModalOpen, setIsSaveModalOpen] = useState(false)
-  const [isLoadModalOpen, setIsLoadModalOpen] = useState(false)
-  const [saveListName, setSaveListName] = useState('')
-  const [isShoppingListLoading, setIsShoppingListLoading] = useState(false)
-
-  const [isSaving, setIsSaving] = useState(false)
-  const [manualForm, setManualForm] = useState<ManualShoppingForm>(
-    emptyManualShoppingForm,
+  const [currentListId, setCurrentListId] = useState<string | null>(null)
+  const [currentListName, setCurrentListName] = useState('買い物リスト')
+  const [items, setItems] = useState<ShoppingListItem[]>([])
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(
+    () => new Set(),
   )
+  const [selectedCandidateIds, setSelectedCandidateIds] =
+    useState<Set<string> | null>(null)
+  const [visibleRecipeCount, setVisibleRecipeCount] = useState(recipePageSize)
+  const [manualForm, setManualForm] =
+    useState<ManualShoppingForm>(emptyManualShoppingForm)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [errorMessage, setErrorMessage] = useState('')
+  const [toastMessage, setToastMessage] = useState('')
 
   useEffect(() => {
     return () => {
       if (toastTimerRef.current !== null) {
         window.clearTimeout(toastTimerRef.current)
-        toastTimerRef.current = null
       }
     }
   }, [])
+
+  useEffect(() => {
+    let isMounted = true
+
+    Promise.all([
+      fetchInventory(language),
+      fetchSavedRecipes(language),
+      fetchCookingHistory(language),
+      fetchShoppingLists(),
+    ])
+      .then(([inventoryResult, savedRecipeResult, historyResult, listResult]) => {
+        if (!isMounted) return
+
+        const recipeMap = new Map<string, Recipe>()
+        const addRecipe = (recipe: Recipe) => {
+          const key = getRecipeKey(recipe)
+          if (key && !recipeMap.has(key)) {
+            recipeMap.set(key, recipe)
+          }
+        }
+
+        savedRecipeResult.recipes.forEach(addRecipe)
+        historyResult.recipes.forEach(addRecipe)
+
+        setInventory(inventoryResult.inventory)
+        setCache(`inventory:${language}`, inventoryResult.inventory)
+        setRecipes(Array.from(recipeMap.values()))
+        setSavedLists(listResult.shoppingLists)
+        setErrorMessage('')
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setErrorMessage(
+          error instanceof Error ? error.message : t('shopping.loadFailed'),
+        )
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false)
+        }
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [language, t])
+
+  const recipeCandidateItems = useMemo(() => {
+    const requiredMap = new Map<
+      string,
+      ShoppingListItem & { sourceRecipes: Set<string> }
+    >()
+    const inventoryMap = new Map<string, { gram: number; quantity: number }>()
+
+    inventory.forEach((ingredient) => {
+      const key = normalizeName(ingredient.name)
+      const current = inventoryMap.get(key) ?? { gram: 0, quantity: 0 }
+      current.gram += ingredient.gram ?? 0
+      current.quantity += ingredient.quantity ?? 0
+      inventoryMap.set(key, current)
+    })
+
+    recipes.forEach((recipe) => {
+      const recipeKey = getRecipeKey(recipe)
+      if (!recipeKey || !selectedRecipeIds.has(recipeKey)) return
+
+      recipe.ingredients?.forEach((ingredient) => {
+        const key = normalizeName(ingredient.name)
+        const existing = requiredMap.get(key)
+        const unit = ingredient.unit || existing?.unit || '個'
+        const current =
+          existing ??
+          ({
+            itemId: `candidate-${key}`,
+            name: ingredient.name,
+            category: inferCategory(ingredient.name),
+            quantity: null,
+            gram: null,
+            unit,
+            memo: null,
+            checked: false,
+            sourceRecipes: new Set<string>(),
+          } as ShoppingListItem & { sourceRecipes: Set<string> })
+
+        current.sourceRecipes.add(recipe.name)
+        current.unit = unit
+
+        if (isWeightUnit(unit)) {
+          current.gram = (current.gram ?? 0) + ingredient.amount
+        } else {
+          current.quantity = (current.quantity ?? 0) + ingredient.amount
+        }
+
+        requiredMap.set(key, current)
+      })
+    })
+
+    const currentKeys = new Set(items.map((item) => normalizeName(item.name)))
+
+    return Array.from(requiredMap.entries())
+      .map(([key, required]): RecipeCandidateItem | null => {
+        const stock = inventoryMap.get(key) ?? { gram: 0, quantity: 0 }
+        const lackGram = Math.max(0, (required.gram ?? 0) - stock.gram)
+        const lackQuantity = Math.max(
+          0,
+          (required.quantity ?? 0) - stock.quantity,
+        )
+
+        if (lackGram <= 0 && lackQuantity <= 0) {
+          return null
+        }
+
+        const { sourceRecipes, ...candidate } = required
+
+        return {
+          ...candidate,
+          itemId: `candidate-${key}`,
+          gram: lackGram > 0 ? Math.ceil(lackGram) : null,
+          quantity: lackQuantity > 0 ? Math.ceil(lackQuantity) : null,
+          memo: `レシピ: ${Array.from(sourceRecipes).join(', ')}`,
+          checked: false,
+          alreadyAdded: currentKeys.has(key),
+        }
+      })
+      .filter(
+        (item): item is RecipeCandidateItem => item !== null,
+      )
+  }, [inventory, items, recipes, selectedRecipeIds])
+
+  const defaultSelectedCandidateIds = useMemo(() => {
+    return new Set(
+      recipeCandidateItems
+        .filter((item) => !item.alreadyAdded)
+        .map((item) => item.itemId),
+    )
+  }, [recipeCandidateItems])
+
+  const activeSelectedCandidateIds =
+    selectedCandidateIds ?? defaultSelectedCandidateIds
+
+  const groupedItems = useMemo(() => {
+    return items.reduce(
+      (groups, item) => {
+        const category = item.category || CATEGORY_OTHER
+        groups[category] ??= []
+        groups[category].push(item)
+        return groups
+      },
+      {} as Record<string, ShoppingListItem[]>,
+    )
+  }, [items])
+
+  const categories = useMemo(() => {
+    return Array.from(
+      new Set(items.map((item) => item.category || CATEGORY_OTHER)),
+    ).toSorted((left, right) => compareCategoryNames(left, right, language))
+  }, [items, language])
+
+  const checkedCount = items.filter((item) => item.checked).length
 
   function showToast(message: string) {
     if (toastTimerRef.current !== null) {
@@ -200,343 +378,7 @@ export function ShoppingListPage({
     toastTimerRef.current = window.setTimeout(() => {
       setToastMessage('')
       toastTimerRef.current = null
-    }, 2400)
-  }
-
-  useEffect(() => {
-    let isMounted = true
-
-    Promise.all([
-      fetchInventory(language),
-      fetchSavedRecipes(language),
-      fetchCookingHistory(language),
-    ])
-      .then(([inventoryRes, savedRes, historyRes]) => {
-        if (!isMounted) return
-
-        const uniqueRecipesMap = new Map<string, Recipe>()
-        const addRecipe = (r: Recipe) => {
-          const key = r.recipeId || r.name
-          if (key && !uniqueRecipesMap.has(key)) {
-            uniqueRecipesMap.set(key, r)
-          }
-        }
-        savedRes.recipes.forEach(addRecipe)
-        historyRes.recipes.forEach(addRecipe)
-
-        setFridgeIngredients(inventoryRes.inventory)
-        setCache(`inventory:${language}`, inventoryRes.inventory)
-        setRecipes(Array.from(uniqueRecipesMap.values()))
-        setError(null)
-        setLoading(false)
-      })
-      .catch((err) => {
-        if (!isMounted) return
-        setError(err instanceof Error ? err.message : t('fridge.fetchFailed'))
-        setLoading(false)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [language, t])
-
-  useEffect(() => {
-    // Clear legacy localStorage shopping data so stale lists don't reappear
-    // when navigating back to this page.
-    if (typeof window !== 'undefined') {
-      window.localStorage.removeItem('ai-recipe-manual-shopping')
-    }
-  }, [])
-
-  useEffect(() => {
-    let isMounted = true
-
-    fetchShoppingLists()
-      .then((result) => {
-        if (!isMounted) return
-        setSavedLists(result.shoppingLists)
-      })
-      .catch((error) => {
-        if (!isMounted) return
-        console.warn('[vite] Failed to fetch shopping lists:', error)
-      })
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  const recipeCandidateItems = useMemo(() => {
-    const requiredMap = new Map<string, { name: string; g: number; pcs: number; recipes: Set<string> }>()
-    const manualItemKeys = new Set(
-      manualItems.map((item) => getShoppingItemKey(item.name)),
-    )
-
-    recipes.forEach((recipe) => {
-      const recipeKey = recipe.recipeId || recipe.name
-      if (!recipeKey || !selectedRecipeIds.has(recipeKey)) return
-
-      recipe.ingredients?.forEach((ing) => {
-        const nameKey = ing.name.trim().toLowerCase()
-        const existing = requiredMap.get(nameKey) || {
-          name: ing.name,
-          g: 0,
-          pcs: 0,
-          recipes: new Set<string>(),
-        }
-        existing.recipes.add(recipe.name)
-        if (ing.unit === 'g') {
-          existing.g += ing.amount
-        } else {
-          existing.pcs += ing.amount
-        }
-        requiredMap.set(nameKey, existing)
-      })
-    })
-
-    const inventoryMap = new Map<string, { g: number; pcs: number; category: string }>()
-    fridgeIngredients.forEach((ing) => {
-      const nameKey = ing.name.trim().toLowerCase()
-      const existing = inventoryMap.get(nameKey) || {
-        g: 0,
-        pcs: 0,
-        category: ing.category || CATEGORY_OTHER,
-      }
-      existing.g += ing.gram || 0
-      existing.pcs += ing.quantity || 0
-      if (ing.category && ing.category !== CATEGORY_OTHER) {
-        existing.category = ing.category
-      }
-      inventoryMap.set(nameKey, existing)
-    })
-
-    const autoGenerated: ShoppingItem[] = []
-    requiredMap.forEach((req, nameKey) => {
-      if (manualItemKeys.has(nameKey)) return
-
-      const inv = inventoryMap.get(nameKey)
-      const invG = inv ? inv.g : 0
-      const invPcs = inv ? inv.pcs : 0
-      const lackG = Math.max(0, req.g - invG)
-      const lackPcs = Math.max(0, req.pcs - invPcs)
-      const displayG = lackG > 0 ? lackG : req.g
-      const displayPcs = lackPcs > 0 ? lackPcs : req.pcs
-      const category = inv ? inv.category : inferCategory(req.name)
-      const memo = Array.from(req.recipes).join(', ')
-
-      autoGenerated.push({
-        id: `auto-${nameKey}`,
-        name: req.name,
-        category,
-        quantity: displayPcs > 0 ? Math.ceil(displayPcs) : null,
-        gram: displayG > 0 ? Math.ceil(displayG) : null,
-        isManual: false,
-        memo: `${t('recipe.ingredientsEyebrow')}: ${memo}`,
-      })
-    })
-
-    return autoGenerated
-  }, [recipes, selectedRecipeIds, fridgeIngredients, manualItems, t])
-
-  const shoppingItems = manualItems
-
-  const availableCategories = useMemo(() => {
-    const existing = shoppingItems.map((item) => item.category?.trim() || CATEGORY_OTHER)
-    return Array.from(new Set(existing)).toSorted((left, right) =>
-      compareCategoryNames(left, right, language),
-    )
-  }, [shoppingItems, language])
-
-  const groupedItems = useMemo(() => {
-    return shoppingItems.reduce(
-      (groups, item) => {
-        const cat = item.category || CATEGORY_OTHER
-        groups[cat] ??= []
-        groups[cat].push(item)
-        return groups
-      },
-      {} as Record<string, ShoppingItem[]>,
-    )
-  }, [shoppingItems])
-
-  const recipeCandidateCategories = useMemo(() => {
-    const existing = recipeCandidateItems.map(
-      (item) => item.category?.trim() || CATEGORY_OTHER,
-    )
-    return Array.from(new Set(existing)).toSorted((left, right) =>
-      compareCategoryNames(left, right, language),
-    )
-  }, [recipeCandidateItems, language])
-
-  const groupedRecipeCandidateItems = useMemo(() => {
-    return recipeCandidateItems.reduce(
-      (groups, item) => {
-        const cat = item.category || CATEGORY_OTHER
-        groups[cat] ??= []
-        groups[cat].push(item)
-        return groups
-      },
-      {} as Record<string, ShoppingItem[]>,
-    )
-  }, [recipeCandidateItems])
-
-  function toggleRecipeSelection(recipeId: string) {
-    setSelectedRecipeIds((current) => {
-      const next = new Set(current)
-      if (next.has(recipeId)) {
-        next.delete(recipeId)
-      } else {
-        next.add(recipeId)
-      }
-      return next
-    })
-  }
-
-  function handleAddRecipeCandidatesToShoppingList() {
-    const itemsToAdd = recipeCandidateItems
-    if (itemsToAdd.length === 0) {
-      showToast(t('shopping.addSelectedNone'))
-      return
-    }
-
-    setIsSaving(true)
-
-    setManualItems((current) => {
-      const existingKeys = new Set(
-        current.map((item) => getShoppingItemKey(item.name)),
-      )
-      const nextItems = itemsToAdd
-        .filter((item) => !existingKeys.has(getShoppingItemKey(item.name)))
-        .map((item, index) => ({
-          id: `manual-${Date.now()}-${index}`,
-          name: item.name,
-          category: item.category,
-          quantity: item.quantity,
-          gram: item.gram,
-          isManual: true,
-          memo: item.memo,
-        }))
-
-      return [...nextItems, ...current]
-    })
-
-    showToast(t('shopping.moveSuccessAlert', { count: itemsToAdd.length }))
-    setIsSaving(false)
-  }
-
-  function updateManualForm(field: keyof ManualShoppingForm, value: string) {
-    setManualForm((current) => ({
-      ...current,
-      [field]: value,
-    }))
-  }
-
-  function handleAddManualItem(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const name = manualForm.name.trim()
-    if (!name) {
-      showToast(t('shopping.nameRequired'))
-      return
-    }
-
-    const quantity = manualForm.quantity ? Number(manualForm.quantity) : null
-    const gram = manualForm.gram ? Number(manualForm.gram) : null
-
-    setManualItems((current) => [
-      {
-        id: `manual-${Date.now()}`,
-        name,
-        category: manualForm.category.trim() || inferCategory(name),
-        quantity: quantity && quantity > 0 ? quantity : null,
-        gram: gram && gram > 0 ? gram : null,
-        isManual: true,
-        memo: manualForm.memo.trim() || undefined,
-      },
-      ...current,
-    ])
-    setManualForm(emptyManualShoppingForm)
-    showToast(t('shopping.addSuccess'))
-  }
-
-  function handleRemoveManualItem(itemId: string) {
-    setManualItems((current) => current.filter((item) => item.id !== itemId))
-  }
-
-  async function handleSaveShoppingList(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const name = saveListName.trim()
-    if (!name) {
-      showToast(t('shopping.nameRequired'))
-      return
-    }
-
-    if (shoppingItems.length === 0) {
-      showToast(t('shopping.addSelectedNone'))
-      return
-    }
-
-    setIsShoppingListLoading(true)
-
-    try {
-      const result = await createShoppingList({
-        name,
-        items: shoppingItems.map((item) => ({
-          name: item.name,
-          category: item.category,
-          quantity: item.quantity,
-          gram: item.gram,
-          memo: item.memo ?? null,
-          checked: false,
-        })),
-      })
-      setSavedLists((current) =>
-        [result.shoppingList, ...current].sort(
-          (left, right) =>
-            new Date(right.updatedAt).getTime() -
-            new Date(left.updatedAt).getTime(),
-        ),
-      )
-      setSaveListName('')
-      setIsSaveModalOpen(false)
-      showToast(t('shopping.saveSuccess'))
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : t('shopping.saveFailed'))
-    } finally {
-      setIsShoppingListLoading(false)
-    }
-  }
-
-  async function handleViewShoppingList(shoppingListId: string) {
-    setIsShoppingListLoading(true)
-
-    try {
-      const result = await fetchShoppingList(shoppingListId)
-      setSelectedSavedList(result.shoppingList)
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : t('shopping.loadFailed'))
-    } finally {
-      setIsShoppingListLoading(false)
-    }
-  }
-
-  async function handleDeleteSavedList(shoppingListId: string) {
-    setIsShoppingListLoading(true)
-
-    try {
-      const result = await deleteShoppingList(shoppingListId)
-      setSavedLists(result.shoppingLists)
-      setSelectedSavedList((current) =>
-        current?.shoppingListId === shoppingListId ? null : current,
-      )
-      showToast(t('shopping.deleteSuccess'))
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : t('shopping.deleteFailed'))
-    } finally {
-      setIsShoppingListLoading(false)
-    }
+    }, 2600)
   }
 
   function getCategoryLabel(category: string) {
@@ -555,7 +397,230 @@ export function ShoppingListPage({
         return category
     }
   }
-  if (loading) {
+
+  function updateManualForm(field: keyof ManualShoppingForm, value: string) {
+    setManualForm((current) => ({ ...current, [field]: value }))
+  }
+
+  function handleAddManualItem(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const name = manualForm.name.trim()
+
+    if (!name) {
+      showToast(t('shopping.nameRequired'))
+      return
+    }
+
+    setItems((current) => [
+      {
+        itemId: createItemId('manual'),
+        name,
+        category: manualForm.category.trim() || inferCategory(name),
+        quantity: getNumber(manualForm.quantity),
+        gram: getNumber(manualForm.gram),
+        unit: manualForm.unit.trim() || '個',
+        memo: manualForm.memo.trim() || null,
+        checked: false,
+      },
+      ...current,
+    ])
+    setManualForm(emptyManualShoppingForm)
+    showToast(t('shopping.addSuccess'))
+  }
+
+  function handleToggleRecipe(recipeId: string) {
+    setSelectedCandidateIds(null)
+    setSelectedRecipeIds((current) => {
+      const next = new Set(current)
+      if (next.has(recipeId)) {
+        next.delete(recipeId)
+      } else {
+        next.add(recipeId)
+      }
+      return next
+    })
+  }
+
+  function handleToggleCandidate(itemId: string) {
+    setSelectedCandidateIds((current) => {
+      const next = new Set(current ?? defaultSelectedCandidateIds)
+      if (next.has(itemId)) {
+        next.delete(itemId)
+      } else {
+        next.add(itemId)
+      }
+      return next
+    })
+  }
+
+  function handleAddRecipeCandidates() {
+    const selectedItems = recipeCandidateItems.filter((item) => {
+      return activeSelectedCandidateIds.has(item.itemId) && !item.alreadyAdded
+    })
+
+    if (selectedItems.length === 0) {
+      showToast(t('shopping.addSelectedNone'))
+      return
+    }
+
+    setItems((current) => [
+      ...selectedItems.map((item) => ({
+        itemId: createItemId('recipe'),
+        name: item.name,
+        category: item.category,
+        quantity: item.quantity,
+        gram: item.gram,
+        unit: item.unit,
+        memo: item.memo,
+        checked: false,
+      })),
+      ...current,
+    ])
+    setSelectedCandidateIds(null)
+    showToast(t('shopping.moveSuccessAlert', { count: selectedItems.length }))
+  }
+
+  function handleToggleItem(itemId: string | undefined) {
+    if (!itemId) return
+    setItems((current) =>
+      current.map((item) =>
+        item.itemId === itemId ? { ...item, checked: !item.checked } : item,
+      ),
+    )
+  }
+
+  function handleRemoveItem(itemId: string | undefined) {
+    if (!itemId) return
+    setItems((current) => current.filter((item) => item.itemId !== itemId))
+  }
+
+  function normalizeItemsForSave() {
+    return items.map((item, index) => ({
+      ...item,
+      sortOrder: index,
+      unit: item.unit ?? '個',
+      memo: item.memo ?? null,
+    }))
+  }
+
+  async function handleSaveCurrentList() {
+    if (items.length === 0) {
+      showToast(t('shopping.addSelectedNone'))
+      return null
+    }
+
+    setIsSaving(true)
+
+    try {
+      const input = {
+        name: currentListName.trim() || '買い物リスト',
+        items: normalizeItemsForSave(),
+      }
+      const result = currentListId
+        ? await updateShoppingList(currentListId, input)
+        : await createShoppingList(input)
+
+      setCurrentListId(result.shoppingList.shoppingListId)
+      setCurrentListName(result.shoppingList.name)
+      setItems(result.shoppingList.items)
+      await refreshSavedLists()
+      showToast(t('shopping.saveSuccess'))
+      return result.shoppingList
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : t('shopping.saveFailed'))
+      return null
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function refreshSavedLists() {
+    const result = await fetchShoppingLists()
+    setSavedLists(result.shoppingLists)
+  }
+
+  async function handleLoadList(shoppingListId: string) {
+    setIsSaving(true)
+
+    try {
+      const result = await fetchShoppingList(shoppingListId)
+      setCurrentListId(result.shoppingList.shoppingListId)
+      setCurrentListName(result.shoppingList.name)
+      setItems(result.shoppingList.items)
+      showToast(t('shopping.loadSuccess'))
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : t('shopping.loadFailed'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleDeleteList(shoppingListId: string) {
+    setIsSaving(true)
+
+    try {
+      const result = await deleteShoppingList(shoppingListId)
+      setSavedLists(result.shoppingLists)
+      if (currentListId === shoppingListId) {
+        setCurrentListId(null)
+        setCurrentListName('買い物リスト')
+        setItems([])
+      }
+      showToast(t('shopping.deleteSuccess'))
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : t('shopping.deleteFailed'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function handleImportPurchased() {
+    const hasPurchasedItems = items.some((item) => item.checked)
+
+    if (!hasPurchasedItems) {
+      showToast('購入済みの項目を選択してください')
+      return
+    }
+
+    setIsImporting(true)
+
+    try {
+      const savedList = await handleSaveCurrentList()
+      const purchasedIds = savedList?.items
+        .filter((item) => item.checked && item.itemId)
+        .map((item) => item.itemId as string)
+
+      if (!savedList || !purchasedIds || purchasedIds.length === 0) {
+        return
+      }
+
+      const result = await importShoppingListToInventory(
+        savedList.shoppingListId,
+        purchasedIds,
+      )
+      setCurrentListId(result.shoppingList.shoppingListId)
+      setCurrentListName(result.shoppingList.name)
+      setItems(result.shoppingList.items)
+      await refreshSavedLists()
+      window.dispatchEvent(new CustomEvent('inventory-updated'))
+      showToast(`購入済み${result.importedCount}件を食材一覧に登録しました`)
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : '食材一覧への登録に失敗しました')
+    } finally {
+      setIsImporting(false)
+    }
+  }
+
+  function handleStartNewList() {
+    setCurrentListId(null)
+    setCurrentListName('買い物リスト')
+    setItems([])
+    setSelectedRecipeIds(new Set())
+    setSelectedCandidateIds(null)
+    showToast('新しい買い物リストを開始しました')
+  }
+
+  if (isLoading) {
     return (
       <main className="fridge-container shopping-page">
         <div className="fridge-header">
@@ -568,27 +633,29 @@ export function ShoppingListPage({
     )
   }
 
-  if (error) {
+  if (errorMessage) {
     return (
       <main className="fridge-container shopping-page">
         <div className="fridge-header">
           <h1>{t('shopping.title')}</h1>
-          <div className="fridge-header-actions">
-            <button
-              type="button"
-              className="secondary-button back-home-button"
-              onClick={() => onNavigate('home')}
-            >
-              <div style={{ transform: 'scaleX(-1)', display: 'inline-flex' }}>
-                <Icon name="arrow" />
-              </div>
-              <span>{t('common.backHome')}</span>
-            </button>
-          </div>
+          <button
+            type="button"
+            className="secondary-button back-home-button"
+            onClick={() => onNavigate('home')}
+          >
+            <div style={{ transform: 'scaleX(-1)', display: 'inline-flex' }}>
+              <Icon name="arrow" />
+            </div>
+            <span>{t('common.backHome')}</span>
+          </button>
         </div>
         <div className="fridge-error">
-          <p>{error}</p>
-          <button type="button" className="primary-button" onClick={() => window.location.reload()}>
+          <p>{errorMessage}</p>
+          <button
+            type="button"
+            className="primary-button"
+            onClick={() => window.location.reload()}
+          >
             {t('common.reload')}
           </button>
         </div>
@@ -601,11 +668,16 @@ export function ShoppingListPage({
       <div className="fridge-header">
         <div>
           <h1>{t('shopping.title')}</h1>
-          <p className="ingredient-detail-summary">
-            {t('shopping.subtitle')}
-          </p>
+          <p className="ingredient-detail-summary">{t('shopping.subtitle')}</p>
         </div>
         <div className="fridge-header-actions">
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={handleStartNewList}
+          >
+            新規リスト
+          </button>
           <button
             type="button"
             className="secondary-button back-home-button"
@@ -619,6 +691,105 @@ export function ShoppingListPage({
         </div>
       </div>
 
+      <section className="panel settings-section shopping-panel">
+        <div className="section-heading shopping-list-heading">
+          <div>
+            <p className="eyebrow">現在のリスト</p>
+            <h2>{t('shopping.listTitle')}</h2>
+            <p className="settings-section__description">
+              {checkedCount} / {items.length} 件が購入済みです。
+            </p>
+          </div>
+          <div className="shopping-list-actions">
+            <button
+              type="button"
+              className="primary-button"
+              disabled={isSaving}
+              onClick={() => void handleSaveCurrentList()}
+            >
+              {isSaving ? t('common.saving') : t('shopping.saveListBtn')}
+            </button>
+            <button
+              type="button"
+              className="secondary-button"
+              disabled={isImporting || checkedCount === 0}
+              onClick={() => void handleImportPurchased()}
+            >
+              {isImporting ? '登録中...' : '購入済みを食材一覧へ'}
+            </button>
+          </div>
+        </div>
+
+        <label className="settings-field">
+          <span>{t('shopping.saveListNameLabel')}</span>
+          <input
+            type="text"
+            value={currentListName}
+            onChange={(event) => setCurrentListName(event.target.value)}
+          />
+        </label>
+
+        {items.length === 0 ? (
+          <div className="fridge-error">
+            <p>{t('shopping.empty')}</p>
+          </div>
+        ) : (
+          <div className="fridge-tables">
+            {categories.map((category) => {
+              const groupItems = groupedItems[category] ?? []
+              return (
+                <div key={category} className="category-table-wrapper">
+                  <h3 className="category-title">{getCategoryLabel(category)}</h3>
+                  <div className="table-container">
+                    <table className="fridge-table shopping-table">
+                      <thead>
+                        <tr>
+                          <th>購入</th>
+                          <th>{t('fridge.table.ingredient')}</th>
+                          <th>量</th>
+                          <th>{t('fridge.table.memo')}</th>
+                          <th>{t('fridge.table.actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {groupItems.map((item) => (
+                          <tr key={item.itemId ?? item.name}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={item.checked}
+                                onChange={() => handleToggleItem(item.itemId)}
+                                aria-label={`${item.name}を購入済みにする`}
+                              />
+                            </td>
+                            <td className="ingredient-name-cell">
+                              <span className="ingredient-name">{item.name}</span>
+                            </td>
+                            <td>{formatItemAmount(item)}</td>
+                            <td className="shopping-table__memo">
+                              {item.memo || '-'}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="secondary-button shopping-item-delete-button"
+                                onClick={() => handleRemoveItem(item.itemId)}
+                              >
+                                {t('shopping.deleteBtn')}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
+
       <section
         className="panel settings-section shopping-panel shopping-manual-panel"
         aria-labelledby="shopping-manual-title"
@@ -629,9 +800,6 @@ export function ShoppingListPage({
             <h2 id="shopping-manual-title">{t('shopping.addNewTitle')}</h2>
           </div>
         </div>
-        <p className="settings-section__description">
-          {t('shopping.memoDescription')}
-        </p>
         <form onSubmit={handleAddManualItem}>
           <div className="shopping-form-grid">
             <label className="settings-field">
@@ -679,6 +847,15 @@ export function ShoppingListPage({
           </div>
           <div className="shopping-form-grid shopping-form-grid--footer">
             <label className="settings-field">
+              <span>単位</span>
+              <input
+                type="text"
+                value={manualForm.unit}
+                placeholder="個 / 本 / 袋 / g / ml"
+                onChange={(event) => updateManualForm('unit', event.target.value)}
+              />
+            </label>
+            <label className="settings-field">
               <span>{t('fridge.form.memo')}</span>
               <input
                 type="text"
@@ -696,73 +873,67 @@ export function ShoppingListPage({
       </section>
 
       <section className="shopping-panel shopping-recipe-panel">
-        <button
-          type="button"
-          className="shopping-section-toggle"
-          onClick={() => setIsRecipeListOpen(!isRecipeListOpen)}
-        >
-          <span>{t('recipeGenerate.title')} {selectedRecipeIds.size} {t('shopping.selectedRecipeText')}</span>
-          <span className={`shopping-section-toggle__icon ${isRecipeListOpen ? 'is-open' : ''}`}>
-            <Icon name="arrow" />
-          </span>
-        </button>
-        {isRecipeListOpen && (
-          <div className="shopping-recipe-panel__body">
-            {recipes.length === 0 ? (
-              <p className="empty-state">
-                {t('history.empty')}
-              </p>
-            ) : (
-              <>
-                <div className="shopping-recipe-grid">
-                  {recipes.slice(0, visibleRecipeCount).map((recipe) => {
-                    const key = recipe.recipeId || recipe.name
-                    if (!key) return null
-                    const isSelected = selectedRecipeIds.has(key)
-                    return (
-                      <label
-                        key={key}
-                        className={`shopping-recipe-option ${isSelected ? 'is-selected' : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => toggleRecipeSelection(key)}
-                        />
-                        <span className="ingredient-name">
-                          {recipe.name}
-                        </span>
-                      </label>
-                    )
-                  })}
-                </div>
-                {visibleRecipeCount < recipes.length && (
-                  <div className="shopping-recipe-more">
-                    <button
-                      type="button"
-                      className="primary-button"
-                      onClick={() =>
-                        setVisibleRecipeCount((current) =>
-                          Math.min(current + RECIPE_PAGE_SIZE, recipes.length),
-                        )
-                      }
-                    >
-                      <span>{t('shopping.showMore', {
-                        remaining: recipes.length - visibleRecipeCount,
-                      })}</span>
-                      <span className="shopping-recipe-more__icon">
-                        <Icon name="arrow" />
-                      </span>
-                    </button>
-                  </div>
-                )}
-              </>
-            )}
+        <div className="section-heading shopping-list-heading">
+          <div>
+            <p className="eyebrow">レシピ</p>
+            <h2>レシピから不足分を追加</h2>
+            <p className="settings-section__description">
+              作りたいレシピを選ぶと、在庫との差分だけを候補にします。
+            </p>
           </div>
+        </div>
+
+        {recipes.length === 0 ? (
+          <p className="empty-state">{t('history.empty')}</p>
+        ) : (
+          <>
+            <div className="shopping-recipe-grid">
+              {recipes.slice(0, visibleRecipeCount).map((recipe) => {
+                const key = getRecipeKey(recipe)
+                if (!key) return null
+                const isSelected = selectedRecipeIds.has(key)
+                return (
+                  <label
+                    key={key}
+                    className={`shopping-recipe-option ${isSelected ? 'is-selected' : ''}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleRecipe(key)}
+                    />
+                    <span className="ingredient-name">{recipe.name}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {visibleRecipeCount < recipes.length ? (
+              <div className="shopping-recipe-more">
+                <button
+                  type="button"
+                  className="primary-button"
+                  onClick={() =>
+                    setVisibleRecipeCount((current) =>
+                      Math.min(current + recipePageSize, recipes.length),
+                    )
+                  }
+                >
+                  <span>
+                    {t('shopping.showMore', {
+                      remaining: recipes.length - visibleRecipeCount,
+                    })}
+                  </span>
+                  <span className="shopping-recipe-more__icon">
+                    <Icon name="arrow" />
+                  </span>
+                </button>
+              </div>
+            ) : null}
+          </>
         )}
       </section>
 
-      {recipeCandidateItems.length > 0 && (
+      {recipeCandidateItems.length > 0 ? (
         <section className="shopping-panel shopping-candidate-panel">
           <div className="section-heading shopping-list-heading">
             <div>
@@ -775,286 +946,92 @@ export function ShoppingListPage({
             <button
               type="button"
               className="primary-button"
-              disabled={isSaving}
-              onClick={handleAddRecipeCandidatesToShoppingList}
+              onClick={handleAddRecipeCandidates}
             >
-              {isSaving ? t('common.saving') : t('shopping.moveToFridgeBtn')}
+              {t('shopping.moveToFridgeBtn')}
             </button>
           </div>
-          <div className="fridge-tables shopping-candidate-tables">
-            {recipeCandidateCategories.map((category) => {
-              const items = groupedRecipeCandidateItems[category]
-              if (!items || items.length === 0) return null
 
-              return (
-                <div key={category} className="category-table-wrapper">
-                  <h3 className="category-title">{getCategoryLabel(category)}</h3>
-                  <div className="table-container">
-                    <table className="fridge-table shopping-table">
-                      <thead>
-                        <tr>
-                          <th>{t('fridge.table.ingredient')}</th>
-                          <th>{t('fridge.form.quantity')}</th>
-                          <th>{t('fridge.form.gram')}</th>
-                          <th>{t('fridge.table.memo')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item) => (
-                          <tr key={item.id}>
-                            <td className="ingredient-name-cell">
-                              <span className="ingredient-name">{item.name}</span>
-                            </td>
-                            <td>
-                              {item.quantity
-                                ? t('shopping.amountText', { amount: item.quantity })
-                                : '-'}
-                            </td>
-                            <td>
-                              {item.gram
-                                ? t('shopping.weightText', { weight: item.gram })
-                                : '-'}
-                            </td>
-                            <td className="shopping-table__memo">
-                              {item.memo || '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
-            })}
+          <div className="table-container">
+            <table className="fridge-table shopping-table">
+              <thead>
+                <tr>
+                  <th>追加</th>
+                  <th>{t('fridge.table.ingredient')}</th>
+                  <th>不足分</th>
+                  <th>{t('fridge.table.memo')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recipeCandidateItems.map((item) => {
+                  const key = item.itemId
+                  return (
+                    <tr key={key}>
+                      <td>
+                        <input
+                          type="checkbox"
+                          checked={activeSelectedCandidateIds.has(key)}
+                          disabled={item.alreadyAdded}
+                          onChange={() => handleToggleCandidate(key)}
+                        />
+                      </td>
+                      <td className="ingredient-name-cell">
+                        <span className="ingredient-name">{item.name}</span>
+                        {item.alreadyAdded ? (
+                          <span className="shopping-item-badge">追加済み</span>
+                        ) : null}
+                      </td>
+                      <td>{formatItemAmount(item)}</td>
+                      <td className="shopping-table__memo">{item.memo || '-'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
           </div>
         </section>
-      )}
-      <div className="section-heading shopping-list-heading">
-        <div>
-          <p className="eyebrow">{t('shopping.memoEyebrow')}</p>
-          <h2>{t('shopping.listTitle')}</h2>
-          <p className="settings-section__description shopping-list-heading__description">
-            {t('shopping.markBoughtHint')}
+      ) : null}
+
+      <section className="panel settings-section shopping-panel">
+        <div className="section-heading shopping-list-heading">
+          <div>
+            <p className="eyebrow">保存済み</p>
+            <h2>{t('shopping.loadListTitle')}</h2>
+          </div>
+        </div>
+        {savedLists.length === 0 ? (
+          <p className="settings-section__description">
+            {t('shopping.loadListEmpty')}
           </p>
-        </div>
-        <div className="shopping-list-actions">
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={() => setIsLoadModalOpen(true)}
-          >
-            {t('shopping.loadListBtn')}
-          </button>
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() => setIsSaveModalOpen(true)}
-          >
-            {t('shopping.saveListBtn')}
-          </button>
-        </div>
-      </div>
-
-      {shoppingItems.length === 0 ? (
-        <div className="fridge-error">
-          <p>{t('shopping.empty')}</p>
-        </div>
-      ) : (
-        <div className="fridge-tables">
-          {availableCategories.map((category) => {
-            const items = groupedItems[category]
-            if (!items || items.length === 0) return null
-
-            return (
-              <div key={category} className="category-table-wrapper">
-                <h3 className="category-title">{getCategoryLabel(category)}</h3>
-                <div className="table-container">
-                  <table className="fridge-table shopping-table">
-                    <thead>
-                      <tr>
-                        <th>{t('fridge.table.ingredient')}</th>
-                        <th>{t('fridge.form.quantity')}</th>
-                        <th>{t('fridge.form.gram')}</th>
-                        <th>{t('fridge.table.memo')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.map((item) => (
-                        <tr
-                          key={item.id}
-                        >
-                          <td className="ingredient-name-cell">
-                            <span className="ingredient-name">{item.name}</span>
-                            {item.isManual && (
-                              <span className="shopping-item-badge">
-                                {t('receipt.candidatesEyebrow')}
-                              </span>
-                            )}
-                          </td>
-                          <td>
-                            {item.quantity ? t('shopping.amountText', { amount: item.quantity }) : '-'}
-                          </td>
-                          <td>
-                            {item.gram ? t('shopping.weightText', { weight: item.gram }) : '-'}
-                          </td>
-                          <td className="shopping-table__memo">
-                            <span>{item.memo || '-'}</span>
-                            {item.isManual ? (
-                              <button
-                                type="button"
-                                className="secondary-button shopping-item-delete-button"
-                                onClick={(event) => {
-                                  event.stopPropagation()
-                                  handleRemoveManualItem(item.id)
-                                }}
-                              >
-                                {t('shopping.deleteBtn')}
-                              </button>
-                            ) : null}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-      {isSaveModalOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setIsSaveModalOpen(false)
-            }
-          }}
-        >
-          <div className="cook-modal shopping-modal">
-            <h2>{t('shopping.saveListTitle')}</h2>
-            <p className="settings-section__description">
-              {t('shopping.saveListDescription', { count: shoppingItems.length })}
-            </p>
-            <form onSubmit={handleSaveShoppingList}>
-              <label className="serving-field">
-                <span>{t('shopping.saveListNameLabel')}</span>
-                <input
-                  type="text"
-                  value={saveListName}
-                  placeholder={t('shopping.saveListNamePlaceholder')}
-                  onChange={(event) => setSaveListName(event.target.value)}
-                  disabled={isShoppingListLoading}
-                />
-              </label>
-              <div className="modal-actions">
+        ) : (
+          <ul className="shopping-saved-list">
+            {savedLists.map((list) => (
+              <li key={list.shoppingListId} className="shopping-saved-list__item">
                 <button
                   type="button"
-                  className="secondary-button"
-                  onClick={() => setIsSaveModalOpen(false)}
-                  disabled={isShoppingListLoading}
+                  className="shopping-saved-list__name"
+                  onClick={() => void handleLoadList(list.shoppingListId)}
+                  disabled={isSaving}
                 >
-                  {t('common.cancel')}
+                  <span>{list.name}</span>
+                  <small>
+                    {t('shopping.itemCount', { count: list.itemCount })}
+                    {list.checkedCount ? ` / 購入済み${list.checkedCount}` : ''}
+                  </small>
                 </button>
                 <button
-                  type="submit"
-                  className="primary-button"
-                  disabled={isShoppingListLoading}
+                  type="button"
+                  className="danger-text-button"
+                  onClick={() => void handleDeleteList(list.shoppingListId)}
+                  disabled={isSaving}
                 >
-                  {isShoppingListLoading ? t('common.saving') : t('shopping.saveListBtn')}
+                  {t('shopping.deleteBtn')}
                 </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {isLoadModalOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              setIsLoadModalOpen(false)
-              setSelectedSavedList(null)
-            }
-          }}
-        >
-          <div className="cook-modal shopping-modal">
-            <h2>{t('shopping.loadListTitle')}</h2>
-            {savedLists.length === 0 ? (
-              <p className="settings-section__description">
-                {t('shopping.loadListEmpty')}
-              </p>
-            ) : (
-              <ul className="shopping-saved-list">
-                {savedLists.map((list) => (
-                  <li key={list.shoppingListId} className="shopping-saved-list__item">
-                    <button
-                      type="button"
-                      className="shopping-saved-list__name"
-                      onClick={() => handleViewShoppingList(list.shoppingListId)}
-                      disabled={isShoppingListLoading}
-                    >
-                      <span>{list.name}</span>
-                      <small>
-                        {t('shopping.itemCount', { count: list.itemCount })}
-                      </small>
-                    </button>
-                    <button
-                      type="button"
-                      className="danger-text-button"
-                      onClick={() => handleDeleteSavedList(list.shoppingListId)}
-                      disabled={isShoppingListLoading}
-                    >
-                      {t('shopping.deleteBtn')}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {selectedSavedList ? (
-              <div className="shopping-saved-detail">
-                <div className="section-heading">
-                  <div>
-                    <p className="eyebrow">{t('shopping.memoEyebrow')}</p>
-                    <h3>{selectedSavedList.name}</h3>
-                  </div>
-                  <span>{t('shopping.itemCount', { count: selectedSavedList.itemCount })}</span>
-                </div>
-                <ul className="shopping-saved-detail__items">
-                  {selectedSavedList.items.map((item) => (
-                    <li key={item.itemId ?? `${selectedSavedList.shoppingListId}-${item.name}`}>
-                      <strong>{item.name}</strong>
-                      <span>
-                        {[
-                          item.quantity ? t('shopping.amountText', { amount: item.quantity }) : '',
-                          item.gram ? t('shopping.weightText', { weight: item.gram }) : '',
-                          item.memo ?? '',
-                        ].filter(Boolean).join(' / ') || '-'}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="secondary-button"
-                onClick={() => {
-                  setIsLoadModalOpen(false)
-                  setSelectedSavedList(null)
-                }}
-                disabled={isShoppingListLoading}
-              >
-                {t('common.close')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       {toastMessage ? (
         <div className="toast-message" role="status">
