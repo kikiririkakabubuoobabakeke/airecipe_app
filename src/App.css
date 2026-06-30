@@ -3130,7 +3130,54 @@ button:disabled {
   box-shadow: none;
 }
 
+.shopping-current-panel {
+  order: 1;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.shopping-current-panel .settings-field {
+  max-width: 520px;
+}
+
+.shopping-current-panel .fridge-error {
+  margin: 0;
+}
+
+.shopping-current-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.shopping-current-meta span {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.shopping-current-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.shopping-current-footer .primary-button {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
 .shopping-manual-panel {
+  order: 4;
   display: grid;
   gap: 14px;
   padding: 20px;
@@ -3158,7 +3205,21 @@ button:disabled {
 }
 
 .shopping-recipe-panel {
+  order: 2;
   overflow: hidden;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.shopping-recipe-panel h2,
+.shopping-candidate-panel h2,
+.shopping-current-panel h2,
+.shopping-saved-dialog h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.25;
 }
 
 .shopping-section-toggle {
@@ -3201,16 +3262,16 @@ button:disabled {
 
 .shopping-recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
 }
 
 .shopping-recipe-option {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
-  min-height: 42px;
-  padding: 9px 12px;
+  min-height: 54px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -3237,14 +3298,17 @@ button:disabled {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+  margin-top: 2px;
   accent-color: var(--control-ink);
 }
 
 .shopping-recipe-option .ingredient-name {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .shopping-recipe-more {
@@ -3286,6 +3350,7 @@ button:disabled {
 }
 
 .shopping-candidate-panel {
+  order: 3;
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -3333,7 +3398,7 @@ button:disabled {
 .shopping-saved-list {
   display: grid;
   gap: 8px;
-  margin: 16px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -3346,6 +3411,11 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+}
+
+.shopping-saved-list__item.is-active {
+  border-color: var(--control-ink);
+  background: var(--surface-soft);
 }
 
 .shopping-saved-list__name {
@@ -3451,25 +3521,38 @@ button:disabled {
 
 .shopping-table th:nth-child(1),
 .shopping-table td:nth-child(1) {
-  width: 32%;
-  min-width: 170px;
-  white-space: normal;
+  width: 56px;
+  min-width: 56px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .shopping-table th:nth-child(2),
-.shopping-table td:nth-child(2),
+.shopping-table td:nth-child(2) {
+  width: 30%;
+  min-width: 160px;
+  white-space: normal;
+}
+
 .shopping-table th:nth-child(3),
 .shopping-table td:nth-child(3) {
-  width: 15%;
-  min-width: 96px;
+  width: 120px;
+  min-width: 100px;
   white-space: nowrap;
 }
 
 .shopping-table th:nth-child(4),
 .shopping-table td:nth-child(4) {
-  width: 38%;
-  min-width: 200px;
+  width: auto;
+  min-width: 180px;
   white-space: normal;
+}
+
+.shopping-table th:nth-child(5),
+.shopping-table td:nth-child(5) {
+  width: 96px;
+  min-width: 96px;
+  text-align: right;
 }
 
 .shopping-table td {
@@ -3505,6 +3588,20 @@ button:disabled {
 
 .shopping-modal {
   width: min(520px, 100%);
+}
+
+.shopping-saved-dialog {
+  display: grid;
+  gap: 16px;
+  width: min(560px, 100%);
+  max-height: min(680px, calc(100vh - 48px));
+  overflow: auto;
+}
+
+@media (max-width: 1100px) {
+  .shopping-recipe-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 700px) {
