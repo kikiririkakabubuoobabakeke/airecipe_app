@@ -25,6 +25,7 @@ import type {
   AppDestination,
   Ingredient,
   Recipe,
+  ShoppingList,
   ShoppingListItem,
   ShoppingListSummary,
 } from '../types/ui'
@@ -45,8 +46,9 @@ type ManualShoppingForm = {
 
 type RecipeCandidateItem = ShoppingListItem & {
   itemId: string
-  alreadyAdded: boolean
 }
+
+type ShoppingListDetailsCache = Record<string, ShoppingList>
 
 const emptyManualShoppingForm: ManualShoppingForm = {
   name: '',
@@ -62,6 +64,7 @@ const CATEGORY_MEAT_EGG_FISH = '肉・卵・魚'
 const CATEGORY_VEGETABLE = '野菜'
 const CATEGORY_DAIRY = '乳製品'
 const CATEGORY_PROCESSED = '加工品'
+const DEFAULT_SHOPPING_LIST_NAME = '今日の買い物'
 
 const recipePageSize = 10
 
@@ -173,10 +176,59 @@ function formatItemAmount(item: Pick<ShoppingListItem, 'quantity' | 'gram' | 'un
   return '-'
 }
 
-function compareCategoryNames(left: string, right: string, language: string) {
-  if (left === CATEGORY_OTHER && right !== CATEGORY_OTHER) return 1
-  if (right === CATEGORY_OTHER && left !== CATEGORY_OTHER) return -1
-  return left.localeCompare(right, language)
+function mergeMemoText(currentMemo: string | null, addedMemo: string | null) {
+  if (!currentMemo) return addedMemo
+  if (!addedMemo || currentMemo.includes(addedMemo)) return currentMemo
+  return `${currentMemo} / ${addedMemo}`
+}
+
+function createShoppingItemFromCandidate(item: RecipeCandidateItem): ShoppingListItem {
+  return {
+    itemId: createItemId('recipe'),
+    name: item.name,
+    category: item.category,
+    quantity: item.quantity,
+    gram: item.gram,
+    unit: item.unit,
+    memo: item.memo,
+    checked: false,
+  }
+}
+
+function addRecipeCandidatesToShoppingItems(
+  currentItems: ShoppingListItem[],
+  candidateItems: RecipeCandidateItem[],
+) {
+  const nextItems = currentItems.map((item) => ({ ...item }))
+  const newItems: ShoppingListItem[] = []
+
+  candidateItems.forEach((candidate) => {
+    const candidateKey = normalizeName(candidate.name)
+    const existingIndex = nextItems.findIndex((item) => {
+      return normalizeName(item.name) === candidateKey
+    })
+
+    if (existingIndex === -1) {
+      newItems.push(createShoppingItemFromCandidate(candidate))
+      return
+    }
+
+    const existing = nextItems[existingIndex]
+    const nextGram = (existing.gram ?? 0) + (candidate.gram ?? 0)
+    const nextQuantity = (existing.quantity ?? 0) + (candidate.quantity ?? 0)
+
+    nextItems[existingIndex] = {
+      ...existing,
+      category: existing.category || candidate.category,
+      quantity: nextQuantity > 0 ? nextQuantity : null,
+      gram: nextGram > 0 ? nextGram : null,
+      unit: candidate.unit || existing.unit || '個',
+      memo: mergeMemoText(existing.memo, candidate.memo),
+      checked: false,
+    }
+  })
+
+  return [...newItems, ...nextItems]
 }
 
 function getRecipeKey(recipe: Recipe) {
@@ -186,26 +238,50 @@ function getRecipeKey(recipe: Recipe) {
 export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
   const { language, t } = useI18n()
   const toastTimerRef = useRef<number | null>(null)
+  const inventoryCacheKey = `inventory:${language}`
+  const recipeCacheKey = `shopping-recipes:${language}`
+  const shoppingListsCacheKey = `shopping-lists:${language}`
+  const shoppingListDetailsCacheKey = `shopping-list-details:${language}`
 
   const [inventory, setInventory] = useState<Ingredient[]>(() => {
-    return getCache<Ingredient[]>(`inventory:${language}`) ?? []
+    return getCache<Ingredient[]>(inventoryCacheKey) ?? []
   })
-  const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [savedLists, setSavedLists] = useState<ShoppingListSummary[]>([])
-  const [currentListId, setCurrentListId] = useState<string | null>(null)
-  const [currentListName, setCurrentListName] = useState('買い物リスト')
-  const [items, setItems] = useState<ShoppingListItem[]>([])
+  const [recipes, setRecipes] = useState<Recipe[]>(() => {
+    return getCache<Recipe[]>(recipeCacheKey) ?? []
+  })
+  const [savedLists, setSavedLists] = useState<ShoppingListSummary[]>(() => {
+    return getCache<ShoppingListSummary[]>(shoppingListsCacheKey) ?? []
+  })
+  const [shoppingListDetails, setShoppingListDetails] =
+    useState<ShoppingListDetailsCache>(() => {
+      return getCache<ShoppingListDetailsCache>(shoppingListDetailsCacheKey) ?? {}
+    })
+  const [recipeTargetListId, setRecipeTargetListId] = useState('new')
+  const [recipeNewListName, setRecipeNewListName] = useState(
+    DEFAULT_SHOPPING_LIST_NAME,
+  )
+  const [manualTargetListId, setManualTargetListId] = useState('new')
+  const [manualNewListName, setManualNewListName] = useState(
+    DEFAULT_SHOPPING_LIST_NAME,
+  )
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(
     () => new Set(),
   )
-  const [selectedCandidateIds, setSelectedCandidateIds] =
+  const [excludedCandidateIds, setExcludedCandidateIds] =
     useState<Set<string> | null>(null)
   const [visibleRecipeCount, setVisibleRecipeCount] = useState(recipePageSize)
   const [manualForm, setManualForm] =
     useState<ManualShoppingForm>(emptyManualShoppingForm)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(() => {
+    return !getCache<ShoppingListSummary[]>(shoppingListsCacheKey)
+  })
   const [isSaving, setIsSaving] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
+  const [isSavedListDialogOpen, setIsSavedListDialogOpen] = useState(false)
+  const [selectedSavedList, setSelectedSavedList] = useState<ShoppingList | null>(
+    null,
+  )
+  const [isSavedListLoading, setIsSavedListLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [toastMessage, setToastMessage] = useState('')
 
@@ -220,13 +296,20 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
   useEffect(() => {
     let isMounted = true
 
-    Promise.all([
-      fetchInventory(language),
-      fetchSavedRecipes(language),
-      fetchCookingHistory(language),
-      fetchShoppingLists(),
-    ])
-      .then(([inventoryResult, savedRecipeResult, historyResult, listResult]) => {
+    async function loadShoppingPage() {
+      try {
+        const [
+          inventoryResult,
+          savedRecipeResult,
+          historyResult,
+          listResult,
+        ] = await Promise.all([
+          fetchInventory(language),
+          fetchSavedRecipes(language),
+          fetchCookingHistory(language),
+          fetchShoppingLists(),
+        ])
+
         if (!isMounted) return
 
         const recipeMap = new Map<string, Recipe>()
@@ -240,28 +323,33 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         savedRecipeResult.recipes.forEach(addRecipe)
         historyResult.recipes.forEach(addRecipe)
 
+        const nextRecipes = Array.from(recipeMap.values())
+
         setInventory(inventoryResult.inventory)
-        setCache(`inventory:${language}`, inventoryResult.inventory)
-        setRecipes(Array.from(recipeMap.values()))
+        setCache(inventoryCacheKey, inventoryResult.inventory)
+        setRecipes(nextRecipes)
+        setCache(recipeCacheKey, nextRecipes)
         setSavedLists(listResult.shoppingLists)
+        setCache(shoppingListsCacheKey, listResult.shoppingLists)
         setErrorMessage('')
-      })
-      .catch((error) => {
+      } catch (error) {
         if (!isMounted) return
         setErrorMessage(
           error instanceof Error ? error.message : t('shopping.loadFailed'),
         )
-      })
-      .finally(() => {
+      } finally {
         if (isMounted) {
           setIsLoading(false)
         }
-      })
+      }
+    }
+
+    void loadShoppingPage()
 
     return () => {
       isMounted = false
     }
-  }, [language, t])
+  }, [inventoryCacheKey, language, recipeCacheKey, shoppingListsCacheKey, t])
 
   const recipeCandidateItems = useMemo(() => {
     const requiredMap = new Map<
@@ -313,8 +401,6 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       })
     })
 
-    const currentKeys = new Set(items.map((item) => normalizeName(item.name)))
-
     return Array.from(requiredMap.entries())
       .map(([key, required]): RecipeCandidateItem | null => {
         const stock = inventoryMap.get(key) ?? { gram: 0, quantity: 0 }
@@ -337,44 +423,71 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
           quantity: lackQuantity > 0 ? Math.ceil(lackQuantity) : null,
           memo: `レシピ: ${Array.from(sourceRecipes).join(', ')}`,
           checked: false,
-          alreadyAdded: currentKeys.has(key),
         }
       })
       .filter(
         (item): item is RecipeCandidateItem => item !== null,
       )
-  }, [inventory, items, recipes, selectedRecipeIds])
+  }, [inventory, recipes, selectedRecipeIds])
 
-  const defaultSelectedCandidateIds = useMemo(() => {
-    return new Set(
-      recipeCandidateItems
-        .filter((item) => !item.alreadyAdded)
-        .map((item) => item.itemId),
-    )
-  }, [recipeCandidateItems])
+  const activeExcludedCandidateIds = excludedCandidateIds ?? new Set<string>()
+  const addableRecipeCandidateCount = recipeCandidateItems.length
+  const selectedRecipeCandidateCount = recipeCandidateItems.filter((item) => {
+    return !activeExcludedCandidateIds.has(item.itemId)
+  }).length
 
-  const activeSelectedCandidateIds =
-    selectedCandidateIds ?? defaultSelectedCandidateIds
+  const totalShoppingItemCount = savedLists.reduce(
+    (total, list) => total + list.itemCount,
+    0,
+  )
+  const totalCheckedShoppingItemCount = savedLists.reduce(
+    (total, list) => total + (list.checkedCount ?? 0),
+    0,
+  )
+  const totalPendingShoppingItemCount = Math.max(
+    0,
+    totalShoppingItemCount - totalCheckedShoppingItemCount,
+  )
+  const listStateLabel = isSaving ? '保存中' : `${savedLists.length}リスト`
+  const currentListHelpText = totalShoppingItemCount
+    ? '保存済みを開くと、各買い物リストの内容を確認できます。'
+    : '下のフォームかレシピから、買うものを追加できます。'
 
-  const groupedItems = useMemo(() => {
-    return items.reduce(
-      (groups, item) => {
-        const category = item.category || CATEGORY_OTHER
-        groups[category] ??= []
-        groups[category].push(item)
-        return groups
-      },
-      {} as Record<string, ShoppingListItem[]>,
-    )
-  }, [items])
+  function updateSavedListSummary(shoppingList: ShoppingList) {
+    const summary: ShoppingListSummary = {
+      shoppingListId: shoppingList.shoppingListId,
+      name: shoppingList.name,
+      itemCount: shoppingList.items.length,
+      checkedCount: shoppingList.items.filter((item) => item.checked).length,
+      createdAt: shoppingList.createdAt,
+      updatedAt: shoppingList.updatedAt,
+    }
 
-  const categories = useMemo(() => {
-    return Array.from(
-      new Set(items.map((item) => item.category || CATEGORY_OTHER)),
-    ).toSorted((left, right) => compareCategoryNames(left, right, language))
-  }, [items, language])
-
-  const checkedCount = items.filter((item) => item.checked).length
+    setSavedLists((current) => {
+      const next = [
+        summary,
+        ...current.filter(
+          (list) => list.shoppingListId !== shoppingList.shoppingListId,
+        ),
+      ]
+      setCache(shoppingListsCacheKey, next)
+      return next
+    })
+    setShoppingListDetails((current) => {
+      const next = {
+        ...current,
+        [shoppingList.shoppingListId]: shoppingList,
+      }
+      setCache(shoppingListDetailsCacheKey, next)
+      return next
+    })
+    setSelectedSavedList((current) => {
+      if (current?.shoppingListId !== shoppingList.shoppingListId) {
+        return current
+      }
+      return shoppingList
+    })
+  }
 
   function showToast(message: string) {
     if (toastTimerRef.current !== null) {
@@ -409,7 +522,89 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     setManualForm((current) => ({ ...current, [field]: value }))
   }
 
-  function handleAddManualItem(event: FormEvent<HTMLFormElement>) {
+  async function getShoppingListDetail(shoppingListId: string) {
+    const cached = shoppingListDetails[shoppingListId]
+    if (cached) {
+      return cached
+    }
+
+    const result = await fetchShoppingList(shoppingListId)
+    updateSavedListSummary(result.shoppingList)
+    return result.shoppingList
+  }
+
+  function openSavedListDialog() {
+    setSelectedSavedList(null)
+    setIsSavedListDialogOpen(true)
+  }
+
+  function closeSavedListDialog() {
+    setIsSavedListDialogOpen(false)
+    setSelectedSavedList(null)
+  }
+
+  function normalizeItemsForSave(nextItems: ShoppingListItem[]) {
+    return nextItems.map((item, index) => ({
+      ...item,
+      sortOrder: index,
+      unit: item.unit ?? '個',
+      memo: item.memo ?? null,
+    }))
+  }
+
+  async function saveItemsToTargetList(
+    nextItems: ShoppingListItem[],
+    options: {
+      targetListId: string
+      name?: string
+      successMessage?: string
+    },
+  ): Promise<ShoppingList | null> {
+    if (nextItems.length === 0) {
+      return null
+    }
+
+    setIsSaving(true)
+
+    try {
+      const result =
+        options.targetListId === 'new'
+          ? await createShoppingList({
+              name:
+                (options.name ?? DEFAULT_SHOPPING_LIST_NAME).trim() ||
+                DEFAULT_SHOPPING_LIST_NAME,
+              items: normalizeItemsForSave(nextItems),
+            })
+          : await updateShoppingList(options.targetListId, {
+              items: normalizeItemsForSave(nextItems),
+            })
+
+      updateSavedListSummary(result.shoppingList)
+
+      if (options.successMessage) {
+        showToast(options.successMessage)
+      }
+
+      return result.shoppingList
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : t('shopping.saveFailed'))
+
+      return null
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  async function getTargetItems(targetListId: string) {
+    if (targetListId === 'new') {
+      return []
+    }
+
+    const targetList = await getShoppingListDetail(targetListId)
+    return targetList.items
+  }
+
+  async function handleAddManualItem(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const name = manualForm.name.trim()
 
@@ -418,7 +613,8 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       return
     }
 
-    setItems((current) => [
+    const targetItems = await getTargetItems(manualTargetListId)
+    const nextItems = [
       {
         itemId: createItemId('manual'),
         name,
@@ -429,14 +625,23 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         memo: manualForm.memo.trim() || null,
         checked: false,
       },
-      ...current,
-    ])
+      ...targetItems,
+    ]
+
     setManualForm(emptyManualShoppingForm)
-    showToast(t('shopping.addSuccess'))
+    const result = await saveItemsToTargetList(nextItems, {
+      targetListId: manualTargetListId,
+      name: manualNewListName,
+      successMessage: t('shopping.addSuccess'),
+    })
+    if (manualTargetListId === 'new' && result) {
+      setManualTargetListId(result.shoppingListId)
+      setManualNewListName(DEFAULT_SHOPPING_LIST_NAME)
+    }
   }
 
   function handleToggleRecipe(recipeId: string) {
-    setSelectedCandidateIds(null)
+    setExcludedCandidateIds(null)
     setSelectedRecipeIds((current) => {
       const next = new Set(current)
       if (next.has(recipeId)) {
@@ -448,9 +653,9 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     })
   }
 
-  function handleToggleCandidate(itemId: string) {
-    setSelectedCandidateIds((current) => {
-      const next = new Set(current ?? defaultSelectedCandidateIds)
+  function handleToggleCandidateExclusion(itemId: string) {
+    setExcludedCandidateIds((current) => {
+      const next = new Set(current ?? [])
       if (next.has(itemId)) {
         next.delete(itemId)
       } else {
@@ -460,9 +665,9 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     })
   }
 
-  function handleAddRecipeCandidates() {
+  async function handleAddRecipeCandidates() {
     const selectedItems = recipeCandidateItems.filter((item) => {
-      return activeSelectedCandidateIds.has(item.itemId) && !item.alreadyAdded
+      return !activeExcludedCandidateIds.has(item.itemId)
     })
 
     if (selectedItems.length === 0) {
@@ -470,95 +675,34 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       return
     }
 
-    setItems((current) => [
-      ...selectedItems.map((item) => ({
-        itemId: createItemId('recipe'),
-        name: item.name,
-        category: item.category,
-        quantity: item.quantity,
-        gram: item.gram,
-        unit: item.unit,
-        memo: item.memo,
-        checked: false,
-      })),
-      ...current,
-    ])
-    setSelectedCandidateIds(null)
-    showToast(t('shopping.moveSuccessAlert', { count: selectedItems.length }))
-  }
+    const targetItems = await getTargetItems(recipeTargetListId)
+    const nextItems = addRecipeCandidatesToShoppingItems(targetItems, selectedItems)
 
-  function handleToggleItem(itemId: string | undefined) {
-    if (!itemId) return
-    setItems((current) =>
-      current.map((item) =>
-        item.itemId === itemId ? { ...item, checked: !item.checked } : item,
-      ),
-    )
-  }
-
-  function handleRemoveItem(itemId: string | undefined) {
-    if (!itemId) return
-    setItems((current) => current.filter((item) => item.itemId !== itemId))
-  }
-
-  function normalizeItemsForSave() {
-    return items.map((item, index) => ({
-      ...item,
-      sortOrder: index,
-      unit: item.unit ?? '個',
-      memo: item.memo ?? null,
-    }))
-  }
-
-  async function handleSaveCurrentList() {
-    if (items.length === 0) {
-      showToast(t('shopping.addSelectedNone'))
-      return null
-    }
-
-    setIsSaving(true)
-
-    try {
-      const input = {
-        name: currentListName.trim() || '買い物リスト',
-        items: normalizeItemsForSave(),
-      }
-      const result = currentListId
-        ? await updateShoppingList(currentListId, input)
-        : await createShoppingList(input)
-
-      setCurrentListId(result.shoppingList.shoppingListId)
-      setCurrentListName(result.shoppingList.name)
-      setItems(result.shoppingList.items)
-      await refreshSavedLists()
-      showToast(t('shopping.saveSuccess'))
-      return result.shoppingList
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : t('shopping.saveFailed'))
-      return null
-    } finally {
-      setIsSaving(false)
+    setExcludedCandidateIds(null)
+    const result = await saveItemsToTargetList(nextItems, {
+      targetListId: recipeTargetListId,
+      name: recipeNewListName,
+      successMessage: t('shopping.moveSuccessAlert', {
+        count: selectedItems.length,
+      }),
+    })
+    if (recipeTargetListId === 'new' && result) {
+      setRecipeTargetListId(result.shoppingListId)
+      setRecipeNewListName(DEFAULT_SHOPPING_LIST_NAME)
     }
   }
 
-  async function refreshSavedLists() {
-    const result = await fetchShoppingLists()
-    setSavedLists(result.shoppingLists)
-  }
-
-  async function handleLoadList(shoppingListId: string) {
-    setIsSaving(true)
+  async function handleSelectSavedList(shoppingListId: string) {
+    setIsSavedListLoading(true)
 
     try {
       const result = await fetchShoppingList(shoppingListId)
-      setCurrentListId(result.shoppingList.shoppingListId)
-      setCurrentListName(result.shoppingList.name)
-      setItems(result.shoppingList.items)
-      showToast(t('shopping.loadSuccess'))
+      setSelectedSavedList(result.shoppingList)
+      updateSavedListSummary(result.shoppingList)
     } catch (error) {
       showToast(error instanceof Error ? error.message : t('shopping.loadFailed'))
     } finally {
-      setIsSaving(false)
+      setIsSavedListLoading(false)
     }
   }
 
@@ -568,10 +712,21 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     try {
       const result = await deleteShoppingList(shoppingListId)
       setSavedLists(result.shoppingLists)
-      if (currentListId === shoppingListId) {
-        setCurrentListId(null)
-        setCurrentListName('買い物リスト')
-        setItems([])
+      setCache(shoppingListsCacheKey, result.shoppingLists)
+      setShoppingListDetails((current) => {
+        const next = { ...current }
+        delete next[shoppingListId]
+        setCache(shoppingListDetailsCacheKey, next)
+        return next
+      })
+      if (selectedSavedList?.shoppingListId === shoppingListId) {
+        setSelectedSavedList(null)
+      }
+      if (recipeTargetListId === shoppingListId) {
+        setRecipeTargetListId('new')
+      }
+      if (manualTargetListId === shoppingListId) {
+        setManualTargetListId('new')
       }
       showToast(t('shopping.deleteSuccess'))
     } catch (error) {
@@ -581,10 +736,53 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     }
   }
 
-  async function handleImportPurchased() {
-    const hasPurchasedItems = items.some((item) => item.checked)
+  async function updateSelectedSavedListItems(nextItems: ShoppingListItem[]) {
+    if (!selectedSavedList) return
 
-    if (!hasPurchasedItems) {
+    setIsSaving(true)
+
+    try {
+      const result = await updateShoppingList(selectedSavedList.shoppingListId, {
+        items: normalizeItemsForSave(nextItems),
+      })
+      updateSavedListSummary(result.shoppingList)
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : t('shopping.saveFailed'))
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  function handleToggleSavedListItem(itemId: string | undefined) {
+    if (!selectedSavedList || !itemId) return
+
+    const nextItems = selectedSavedList.items.map((item) =>
+      item.itemId === itemId ? { ...item, checked: !item.checked } : item,
+    )
+
+    setSelectedSavedList({ ...selectedSavedList, items: nextItems })
+    void updateSelectedSavedListItems(nextItems)
+  }
+
+  function handleRemoveSavedListItem(itemId: string | undefined) {
+    if (!selectedSavedList || !itemId) return
+
+    const nextItems = selectedSavedList.items.filter(
+      (item) => item.itemId !== itemId,
+    )
+
+    setSelectedSavedList({ ...selectedSavedList, items: nextItems })
+    void updateSelectedSavedListItems(nextItems)
+  }
+
+  async function handleImportSelectedSavedListPurchased() {
+    if (!selectedSavedList) return
+
+    const purchasedIds = selectedSavedList.items
+      .filter((item) => item.checked && item.itemId)
+      .map((item) => item.itemId as string)
+
+    if (purchasedIds.length === 0) {
       showToast('購入済みの項目を選択してください')
       return
     }
@@ -592,39 +790,18 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     setIsImporting(true)
 
     try {
-      const savedList = await handleSaveCurrentList()
-      const purchasedIds = savedList?.items
-        .filter((item) => item.checked && item.itemId)
-        .map((item) => item.itemId as string)
-
-      if (!savedList || !purchasedIds || purchasedIds.length === 0) {
-        return
-      }
-
       const result = await importShoppingListToInventory(
-        savedList.shoppingListId,
+        selectedSavedList.shoppingListId,
         purchasedIds,
       )
-      setCurrentListId(result.shoppingList.shoppingListId)
-      setCurrentListName(result.shoppingList.name)
-      setItems(result.shoppingList.items)
-      await refreshSavedLists()
+      updateSavedListSummary(result.shoppingList)
       window.dispatchEvent(new CustomEvent('inventory-updated'))
-      showToast(`購入済み${result.importedCount}件を食材一覧に登録しました`)
+      showToast(`購入済み${result.importedCount}件を食品一覧に登録しました`)
     } catch (error) {
-      showToast(error instanceof Error ? error.message : '食材一覧への登録に失敗しました')
+      showToast(error instanceof Error ? error.message : '食品一覧への登録に失敗しました')
     } finally {
       setIsImporting(false)
     }
-  }
-
-  function handleStartNewList() {
-    setCurrentListId(null)
-    setCurrentListName('買い物リスト')
-    setItems([])
-    setSelectedRecipeIds(new Set())
-    setSelectedCandidateIds(null)
-    showToast('新しい買い物リストを開始しました')
   }
 
   if (isLoading) {
@@ -680,13 +857,6 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         <div className="fridge-header-actions">
           <button
             type="button"
-            className="secondary-button"
-            onClick={handleStartNewList}
-          >
-            新規リスト
-          </button>
-          <button
-            type="button"
             className="secondary-button back-home-button"
             onClick={() => onNavigate('home')}
           >
@@ -698,185 +868,56 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         </div>
       </div>
 
-      <section className="panel settings-section shopping-panel">
+      <section className="panel settings-section shopping-panel shopping-current-panel">
         <div className="section-heading shopping-list-heading">
           <div>
-            <p className="eyebrow">現在のリスト</p>
-            <h2>{t('shopping.listTitle')}</h2>
+            <p className="eyebrow">買い物リスト全体</p>
+            <h2>すべての買い物リスト</h2>
+            <div className="shopping-current-meta" aria-label="買い物状況">
+              <span>未購入 {totalPendingShoppingItemCount}件</span>
+              <span>購入済み {totalCheckedShoppingItemCount}件</span>
+              <span>{listStateLabel}</span>
+            </div>
             <p className="settings-section__description">
-              {checkedCount} / {items.length} 件が購入済みです。
+              {currentListHelpText}
             </p>
           </div>
           <div className="shopping-list-actions">
             <button
               type="button"
-              className="primary-button"
-              disabled={isSaving}
-              onClick={() => void handleSaveCurrentList()}
-            >
-              {isSaving ? t('common.saving') : t('shopping.saveListBtn')}
-            </button>
-            <button
-              type="button"
               className="secondary-button"
-              disabled={isImporting || checkedCount === 0}
-              onClick={() => void handleImportPurchased()}
+              onClick={openSavedListDialog}
             >
-              {isImporting ? '登録中...' : '購入済みを食材一覧へ'}
+              保存済みを見る
             </button>
           </div>
         </div>
 
-        <label className="settings-field">
-          <span>{t('shopping.saveListNameLabel')}</span>
-          <input
-            type="text"
-            value={currentListName}
-            onChange={(event) => setCurrentListName(event.target.value)}
-          />
-        </label>
-
-        {items.length === 0 ? (
-          <div className="fridge-error">
-            <p>{t('shopping.empty')}</p>
-          </div>
-        ) : (
-          <div className="fridge-tables">
-            {categories.map((category) => {
-              const groupItems = groupedItems[category] ?? []
-              return (
-                <div key={category} className="category-table-wrapper">
-                  <h3 className="category-title">{getCategoryLabel(category)}</h3>
-                  <div className="table-container">
-                    <table className="fridge-table shopping-table">
-                      <thead>
-                        <tr>
-                          <th>購入</th>
-                          <th>{t('fridge.table.ingredient')}</th>
-                          <th>量</th>
-                          <th>{t('fridge.table.memo')}</th>
-                          <th>{t('fridge.table.actions')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {groupItems.map((item) => (
-                          <tr key={item.itemId ?? item.name}>
-                            <td>
-                              <input
-                                type="checkbox"
-                                checked={item.checked}
-                                onChange={() => handleToggleItem(item.itemId)}
-                                aria-label={`${item.name}を購入済みにする`}
-                              />
-                            </td>
-                            <td className="ingredient-name-cell">
-                              <span className="ingredient-name">{item.name}</span>
-                            </td>
-                            <td>{formatItemAmount(item)}</td>
-                            <td className="shopping-table__memo">
-                              {item.memo || '-'}
-                            </td>
-                            <td>
-                              <button
-                                type="button"
-                                className="secondary-button shopping-item-delete-button"
-                                onClick={() => handleRemoveItem(item.itemId)}
-                              >
-                                {t('shopping.deleteBtn')}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      <section
-        className="panel settings-section shopping-panel shopping-manual-panel"
-        aria-labelledby="shopping-manual-title"
-      >
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">{t('shopping.memoEyebrow')}</p>
-            <h2 id="shopping-manual-title">{t('shopping.addNewTitle')}</h2>
-          </div>
+        <div className="shopping-current-summary">
+          {totalShoppingItemCount === 0 ? (
+            <div>
+              <strong>買うものはまだありません</strong>
+              <span>
+                レシピから不足分を追加するか、手入力で買うものを追加してください。
+              </span>
+            </div>
+          ) : (
+            <div>
+              <strong>{totalShoppingItemCount}件の買うものがあります</strong>
+              <span>
+                すべての保存済み買い物リストを合わせた件数です。
+              </span>
+            </div>
+          )}
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={openSavedListDialog}
+            disabled={totalShoppingItemCount === 0}
+          >
+            全リストを確認
+          </button>
         </div>
-        <form onSubmit={handleAddManualItem}>
-          <div className="shopping-form-grid">
-            <label className="settings-field">
-              <span>{t('fridge.form.name')}</span>
-              <input
-                type="text"
-                value={manualForm.name}
-                placeholder={t('shopping.namePlaceholder')}
-                onChange={(event) => updateManualForm('name', event.target.value)}
-              />
-            </label>
-            <label className="settings-field">
-              <span>{t('fridge.form.category')}</span>
-              <input
-                type="text"
-                value={manualForm.category}
-                placeholder={t('shopping.categoryPlaceholder')}
-                onChange={(event) =>
-                  updateManualForm('category', event.target.value)
-                }
-              />
-            </label>
-            <label className="settings-field">
-              <span>{t('fridge.form.quantity')}</span>
-              <input
-                type="number"
-                min="1"
-                value={manualForm.quantity}
-                placeholder={t('shopping.quantityPlaceholder')}
-                onChange={(event) =>
-                  updateManualForm('quantity', event.target.value)
-                }
-              />
-            </label>
-            <label className="settings-field">
-              <span>{t('fridge.form.gram')}</span>
-              <input
-                type="number"
-                min="1"
-                value={manualForm.gram}
-                placeholder={t('shopping.gramPlaceholder')}
-                onChange={(event) => updateManualForm('gram', event.target.value)}
-              />
-            </label>
-          </div>
-          <div className="shopping-form-grid shopping-form-grid--footer">
-            <label className="settings-field">
-              <span>単位</span>
-              <input
-                type="text"
-                value={manualForm.unit}
-                placeholder="個 / 本 / 袋 / g / ml"
-                onChange={(event) => updateManualForm('unit', event.target.value)}
-              />
-            </label>
-            <label className="settings-field">
-              <span>{t('fridge.form.memo')}</span>
-              <input
-                type="text"
-                value={manualForm.memo}
-                placeholder={t('shopping.memoPlaceholder')}
-                onChange={(event) => updateManualForm('memo', event.target.value)}
-              />
-            </label>
-            <button type="submit" className="primary-button">
-              <Icon name="plus" />
-              <span>{t('shopping.addBtn')}</span>
-            </button>
-          </div>
-        </form>
       </section>
 
       <section className="shopping-panel shopping-recipe-panel">
@@ -947,23 +988,54 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
               <p className="eyebrow">{t('recipe.ingredientsEyebrow')}</p>
               <h2>{t('shopping.recipeCandidateTitle')}</h2>
               <p className="settings-section__description shopping-list-heading__description">
-                {t('shopping.recipeCandidateDescription')}
+                候補はすべて追加対象です。買わないものだけ除外にチェックしてください。
+                {addableRecipeCandidateCount > 0
+                  ? ` ${selectedRecipeCandidateCount} / ${addableRecipeCandidateCount}件を追加します。`
+                  : ''}
               </p>
             </div>
             <button
               type="button"
               className="primary-button"
-              onClick={handleAddRecipeCandidates}
+              onClick={() => void handleAddRecipeCandidates()}
+              disabled={isSaving}
             >
-              {t('shopping.moveToFridgeBtn')}
+              {isSaving ? '保存中...' : t('shopping.moveToFridgeBtn')}
             </button>
+          </div>
+
+          <div className="shopping-target-row">
+            <label className="settings-field">
+              <span>追加先リスト</span>
+              <select
+                value={recipeTargetListId}
+                onChange={(event) => setRecipeTargetListId(event.target.value)}
+              >
+                <option value="new">新しい買い物リスト</option>
+                {savedLists.map((list) => (
+                  <option key={list.shoppingListId} value={list.shoppingListId}>
+                    {list.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {recipeTargetListId === 'new' ? (
+              <label className="settings-field">
+                <span>新規リスト名</span>
+                <input
+                  type="text"
+                  value={recipeNewListName}
+                  onChange={(event) => setRecipeNewListName(event.target.value)}
+                />
+              </label>
+            ) : null}
           </div>
 
           <div className="table-container">
             <table className="fridge-table shopping-table">
               <thead>
                 <tr>
-                  <th>追加</th>
+                  <th>除外</th>
                   <th>{t('fridge.table.ingredient')}</th>
                   <th>不足分</th>
                   <th>{t('fridge.table.memo')}</th>
@@ -977,16 +1049,13 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                       <td>
                         <input
                           type="checkbox"
-                          checked={activeSelectedCandidateIds.has(key)}
-                          disabled={item.alreadyAdded}
-                          onChange={() => handleToggleCandidate(key)}
+                          checked={activeExcludedCandidateIds.has(key)}
+                          onChange={() => handleToggleCandidateExclusion(key)}
+                          aria-label={`${item.name}を買い物リストへの追加対象から外す`}
                         />
                       </td>
                       <td className="ingredient-name-cell">
                         <span className="ingredient-name">{item.name}</span>
-                        {item.alreadyAdded ? (
-                          <span className="shopping-item-badge">追加済み</span>
-                        ) : null}
                       </td>
                       <td>{formatItemAmount(item)}</td>
                       <td className="shopping-table__memo">{item.memo || '-'}</td>
@@ -999,46 +1068,277 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         </section>
       ) : null}
 
-      <section className="panel settings-section shopping-panel">
-        <div className="section-heading shopping-list-heading">
+      <section
+        className="panel settings-section shopping-panel shopping-manual-panel"
+        aria-labelledby="shopping-manual-title"
+      >
+        <div className="section-heading">
           <div>
-            <p className="eyebrow">保存済み</p>
-            <h2>{t('shopping.loadListTitle')}</h2>
+            <p className="eyebrow">{t('shopping.memoEyebrow')}</p>
+            <h2 id="shopping-manual-title">{t('shopping.addNewTitle')}</h2>
           </div>
         </div>
-        {savedLists.length === 0 ? (
-          <p className="settings-section__description">
-            {t('shopping.loadListEmpty')}
-          </p>
-        ) : (
-          <ul className="shopping-saved-list">
-            {savedLists.map((list) => (
-              <li key={list.shoppingListId} className="shopping-saved-list__item">
-                <button
-                  type="button"
-                  className="shopping-saved-list__name"
-                  onClick={() => void handleLoadList(list.shoppingListId)}
-                  disabled={isSaving}
-                >
-                  <span>{list.name}</span>
-                  <small>
-                    {t('shopping.itemCount', { count: list.itemCount })}
-                    {list.checkedCount ? ` / 購入済み${list.checkedCount}` : ''}
-                  </small>
-                </button>
-                <button
-                  type="button"
-                  className="danger-text-button"
-                  onClick={() => void handleDeleteList(list.shoppingListId)}
-                  disabled={isSaving}
-                >
-                  {t('shopping.deleteBtn')}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+        <form onSubmit={handleAddManualItem}>
+          <div className="shopping-target-row">
+            <label className="settings-field">
+              <span>追加先リスト</span>
+              <select
+                value={manualTargetListId}
+                onChange={(event) => setManualTargetListId(event.target.value)}
+              >
+                <option value="new">新しい買い物リスト</option>
+                {savedLists.map((list) => (
+                  <option key={list.shoppingListId} value={list.shoppingListId}>
+                    {list.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {manualTargetListId === 'new' ? (
+              <label className="settings-field">
+                <span>新規リスト名</span>
+                <input
+                  type="text"
+                  value={manualNewListName}
+                  onChange={(event) => setManualNewListName(event.target.value)}
+                />
+              </label>
+            ) : null}
+          </div>
+          <div className="shopping-form-grid">
+            <label className="settings-field">
+              <span>{t('fridge.form.name')}</span>
+              <input
+                type="text"
+                value={manualForm.name}
+                placeholder={t('shopping.namePlaceholder')}
+                onChange={(event) => updateManualForm('name', event.target.value)}
+              />
+            </label>
+            <label className="settings-field">
+              <span>{t('fridge.form.category')}</span>
+              <input
+                type="text"
+                value={manualForm.category}
+                placeholder={t('shopping.categoryPlaceholder')}
+                onChange={(event) =>
+                  updateManualForm('category', event.target.value)
+                }
+              />
+            </label>
+            <label className="settings-field">
+              <span>{t('fridge.form.quantity')}</span>
+              <input
+                type="number"
+                min="1"
+                value={manualForm.quantity}
+                placeholder={t('shopping.quantityPlaceholder')}
+                onChange={(event) =>
+                  updateManualForm('quantity', event.target.value)
+                }
+              />
+            </label>
+            <label className="settings-field">
+              <span>{t('fridge.form.gram')}</span>
+              <input
+                type="number"
+                min="1"
+                value={manualForm.gram}
+                placeholder={t('shopping.gramPlaceholder')}
+                onChange={(event) => updateManualForm('gram', event.target.value)}
+              />
+            </label>
+          </div>
+          <div className="shopping-form-grid shopping-form-grid--footer">
+            <label className="settings-field">
+              <span>単位</span>
+              <input
+                type="text"
+                value={manualForm.unit}
+                placeholder="個 / 本 / 袋 / g / ml"
+                onChange={(event) => updateManualForm('unit', event.target.value)}
+              />
+            </label>
+            <label className="settings-field">
+              <span>{t('fridge.form.memo')}</span>
+              <input
+                type="text"
+                value={manualForm.memo}
+                placeholder={t('shopping.memoPlaceholder')}
+                onChange={(event) => updateManualForm('memo', event.target.value)}
+              />
+            </label>
+            <button type="submit" className="primary-button" disabled={isSaving}>
+              <Icon name="plus" />
+              <span>{isSaving ? '保存中...' : t('shopping.addBtn')}</span>
+            </button>
+          </div>
+        </form>
       </section>
+
+      {isSavedListDialogOpen ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={closeSavedListDialog}
+        >
+          <section
+            className="cook-modal shopping-saved-dialog"
+            aria-labelledby="shopping-saved-dialog-title"
+            aria-modal="true"
+            role="dialog"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="section-heading shopping-list-heading">
+              <div>
+                <p className="eyebrow">保存済み</p>
+                <h2 id="shopping-saved-dialog-title">
+                  {t('shopping.loadListTitle')}
+                </h2>
+              </div>
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={closeSavedListDialog}
+              >
+                {t('common.close')}
+              </button>
+            </div>
+            {selectedSavedList ? (
+              <div className="shopping-saved-detail">
+                <div className="section-heading">
+                  <div>
+                    <h3>{selectedSavedList.name}</h3>
+                    <span>
+                      {t('shopping.itemCount', {
+                        count: selectedSavedList.items.length,
+                      })}
+                      {selectedSavedList.items.some((item) => item.checked)
+                        ? ` / 購入済み${
+                            selectedSavedList.items.filter((item) => item.checked)
+                              .length
+                          }`
+                        : ''}
+                    </span>
+                  </div>
+                  <div className="shopping-saved-detail__actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => setSelectedSavedList(null)}
+                    >
+                      一覧に戻る
+                    </button>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      disabled={
+                        isImporting ||
+                        !selectedSavedList.items.some((item) => item.checked)
+                      }
+                      onClick={() => void handleImportSelectedSavedListPurchased()}
+                    >
+                      {isImporting ? '登録中...' : '購入済みを食品一覧に登録'}
+                    </button>
+                  </div>
+                </div>
+
+                {selectedSavedList.items.length === 0 ? (
+                  <p className="settings-section__description">
+                    このリストには買うものがありません。
+                  </p>
+                ) : (
+                  <div className="table-container">
+                    <table className="fridge-table shopping-table">
+                      <thead>
+                        <tr>
+                          <th>購入</th>
+                          <th>{t('fridge.table.ingredient')}</th>
+                          <th>量</th>
+                          <th>{t('fridge.table.memo')}</th>
+                          <th>{t('fridge.table.actions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedSavedList.items.map((item) => (
+                          <tr key={item.itemId ?? item.name}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                checked={item.checked}
+                                onChange={() =>
+                                  handleToggleSavedListItem(item.itemId)
+                                }
+                                aria-label={`${item.name}を購入済みにする`}
+                              />
+                            </td>
+                            <td className="ingredient-name-cell">
+                              <span className="ingredient-name">{item.name}</span>
+                              <small>
+                                {getCategoryLabel(item.category || CATEGORY_OTHER)}
+                              </small>
+                            </td>
+                            <td>{formatItemAmount(item)}</td>
+                            <td className="shopping-table__memo">
+                              {item.memo || '-'}
+                            </td>
+                            <td>
+                              <button
+                                type="button"
+                                className="secondary-button shopping-item-delete-button"
+                                onClick={() =>
+                                  handleRemoveSavedListItem(item.itemId)
+                                }
+                                disabled={isSaving}
+                              >
+                                {t('shopping.deleteBtn')}
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            ) : savedLists.length === 0 ? (
+              <p className="settings-section__description">
+                {t('shopping.loadListEmpty')}
+              </p>
+            ) : (
+              <ul className="shopping-saved-list">
+                {savedLists.map((list) => (
+                  <li
+                    key={list.shoppingListId}
+                    className="shopping-saved-list__item"
+                  >
+                    <button
+                      type="button"
+                      className="shopping-saved-list__name"
+                      onClick={() => void handleSelectSavedList(list.shoppingListId)}
+                      disabled={isSaving || isSavedListLoading}
+                    >
+                      <span>{list.name}</span>
+                      <small>
+                        {t('shopping.itemCount', { count: list.itemCount })}
+                        {list.checkedCount ? ` / 購入済み${list.checkedCount}` : ''}
+                      </small>
+                    </button>
+                    <button
+                      type="button"
+                      className="danger-text-button"
+                      onClick={() => void handleDeleteList(list.shoppingListId)}
+                      disabled={isSaving || isSavedListLoading}
+                    >
+                      {t('shopping.deleteBtn')}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      ) : null}
 
       {toastMessage ? (
         <div className="toast-message" role="status">

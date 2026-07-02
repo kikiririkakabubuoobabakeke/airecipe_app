@@ -2957,7 +2957,7 @@ button:disabled {
   border-bottom: 1px solid var(--line);
 }
 
-/* 冷蔵庫テーブルの特定の列幅 */
+/* 蜀ｷ阡ｵ蠎ｫ繝��繝悶Ν縺ｮ迚ｹ螳壹�蛻怜ｹ� */
 .fridge-table th:nth-child(1),
 .fridge-table td:nth-child(1) {
   width: 18%;
@@ -3130,7 +3130,90 @@ button:disabled {
   box-shadow: none;
 }
 
+.shopping-current-panel {
+  order: 1;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.shopping-current-panel .settings-field {
+  max-width: 520px;
+}
+
+.shopping-current-panel .fridge-error {
+  margin: 0;
+}
+
+.shopping-current-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: var(--surface-soft);
+}
+
+.shopping-current-summary div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.shopping-current-summary strong {
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.shopping-current-summary span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.shopping-current-summary .secondary-button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.shopping-current-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.shopping-current-meta span {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 10px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.shopping-current-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 4px;
+}
+
+.shopping-current-footer .primary-button {
+  min-height: 40px;
+  padding: 0 16px;
+}
+
 .shopping-manual-panel {
+  order: 4;
   display: grid;
   gap: 14px;
   padding: 20px;
@@ -3147,6 +3230,25 @@ button:disabled {
   align-items: end;
 }
 
+.shopping-target-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(220px, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.shopping-target-row select {
+  width: 100%;
+  min-height: 42px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: #fff;
+  font: inherit;
+}
+
 .shopping-form-grid--footer {
   grid-template-columns: minmax(240px, 1fr) auto;
   margin-top: 12px;
@@ -3158,7 +3260,21 @@ button:disabled {
 }
 
 .shopping-recipe-panel {
+  order: 2;
   overflow: hidden;
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.shopping-recipe-panel h2,
+.shopping-candidate-panel h2,
+.shopping-current-panel h2,
+.shopping-saved-dialog h2 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 24px;
+  line-height: 1.25;
 }
 
 .shopping-section-toggle {
@@ -3201,21 +3317,22 @@ button:disabled {
 
 .shopping-recipe-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  gap: 8px;
+  max-width: 1120px;
 }
 
 .shopping-recipe-option {
   display: flex;
   align-items: center;
-  gap: 9px;
-  min-height: 42px;
-  padding: 9px 12px;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 11px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -3237,12 +3354,15 @@ button:disabled {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
+  margin: 0;
   accent-color: var(--control-ink);
 }
 
 .shopping-recipe-option .ingredient-name {
   min-width: 0;
   overflow: hidden;
+  display: block;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -3250,7 +3370,8 @@ button:disabled {
 .shopping-recipe-more {
   display: flex;
   justify-content: center;
-  margin-top: 14px;
+  max-width: 1120px;
+  margin-top: 12px;
 }
 
 .shopping-recipe-more .primary-button {
@@ -3286,6 +3407,7 @@ button:disabled {
 }
 
 .shopping-candidate-panel {
+  order: 3;
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -3333,7 +3455,7 @@ button:disabled {
 .shopping-saved-list {
   display: grid;
   gap: 8px;
-  margin: 16px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
@@ -3346,6 +3468,11 @@ button:disabled {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
+}
+
+.shopping-saved-list__item.is-active {
+  border-color: var(--control-ink);
+  background: var(--surface-soft);
 }
 
 .shopping-saved-list__name {
@@ -3402,6 +3529,20 @@ button:disabled {
   font-weight: 700;
 }
 
+.shopping-saved-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.shopping-saved-detail__actions .primary-button,
+.shopping-saved-detail__actions .secondary-button {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
 .shopping-saved-detail__items {
   display: grid;
   gap: 8px;
@@ -3451,25 +3592,38 @@ button:disabled {
 
 .shopping-table th:nth-child(1),
 .shopping-table td:nth-child(1) {
-  width: 32%;
-  min-width: 170px;
-  white-space: normal;
+  width: 56px;
+  min-width: 56px;
+  text-align: center;
+  white-space: nowrap;
 }
 
 .shopping-table th:nth-child(2),
-.shopping-table td:nth-child(2),
+.shopping-table td:nth-child(2) {
+  width: 30%;
+  min-width: 160px;
+  white-space: normal;
+}
+
 .shopping-table th:nth-child(3),
 .shopping-table td:nth-child(3) {
-  width: 15%;
-  min-width: 96px;
+  width: 120px;
+  min-width: 100px;
   white-space: nowrap;
 }
 
 .shopping-table th:nth-child(4),
 .shopping-table td:nth-child(4) {
-  width: 38%;
-  min-width: 200px;
+  width: auto;
+  min-width: 180px;
   white-space: normal;
+}
+
+.shopping-table th:nth-child(5),
+.shopping-table td:nth-child(5) {
+  width: 96px;
+  min-width: 96px;
+  text-align: right;
 }
 
 .shopping-table td {
@@ -3507,6 +3661,20 @@ button:disabled {
   width: min(520px, 100%);
 }
 
+.shopping-saved-dialog {
+  display: grid;
+  gap: 16px;
+  width: min(680px, 100%);
+  max-height: min(680px, calc(100vh - 48px));
+  overflow: auto;
+}
+
+@media (max-width: 1100px) {
+  .shopping-recipe-grid {
+    grid-template-columns: repeat(2, minmax(220px, 1fr));
+  }
+}
+
 @media (max-width: 700px) {
   .shopping-page {
     gap: 16px;
@@ -3518,7 +3686,8 @@ button:disabled {
   }
 
   .shopping-form-grid,
-  .shopping-form-grid--footer {
+  .shopping-form-grid--footer,
+  .shopping-target-row {
     grid-template-columns: 1fr;
   }
 
@@ -3537,6 +3706,7 @@ button:disabled {
 
   .shopping-recipe-grid {
     grid-template-columns: 1fr;
+    max-width: none;
   }
 
   .shopping-bulk-actions,
@@ -3554,6 +3724,15 @@ button:disabled {
     flex: 1 1 0;
   }
 
+  .shopping-current-summary {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .shopping-current-summary .secondary-button {
+    width: 100%;
+  }
+
   .shopping-saved-list__item {
     align-items: stretch;
     flex-direction: column;
@@ -3566,6 +3745,12 @@ button:disabled {
   .shopping-saved-detail .section-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .shopping-saved-detail__actions,
+  .shopping-saved-detail__actions .primary-button,
+  .shopping-saved-detail__actions .secondary-button {
+    width: 100%;
   }
 }
 
@@ -4378,7 +4563,7 @@ button:disabled {
 }
 
 .select-wrapper::after {
-  content: "▼";
+  content: "笆ｼ";
   font-size: 9px;
   color: var(--muted);
   position: absolute;
@@ -4716,25 +4901,24 @@ button:disabled {
   color: var(--muted);
   font-size: 13px;
 }
-<<<<<<< HEAD
 /* ==========================================================================
-   最下部追記用：PC・スマホの完全な表示分離とハンバーガー内集約設定
+   譛荳矩Κ霑ｽ險倡畑�啀C繝ｻ繧ｹ繝槭�縺ｮ螳悟�縺ｪ陦ｨ遉ｺ蛻�屬縺ｨ繝上Φ繝舌�繧ｬ繝ｼ蜀�寔邏�ｨｭ螳�
    ========================================================================== */
 
-/* 🖥️ 【PC・タブレット表示：701px以上】のコントロール */
+/* 箕�� 縲娠C繝ｻ繧ｿ繝悶Ξ繝�ヨ陦ｨ遉ｺ��701px莉･荳翫代�繧ｳ繝ｳ繝医Ο繝ｼ繝ｫ */
 @media (min-width: 701px) {
-  /* 🎯 中央のナビ内に追加された「スマホ専用の設定・ログアウト」をPC上では完全に非表示 */
+  /* 識 荳ｭ螟ｮ縺ｮ繝翫ン蜀�↓霑ｽ蜉�縺輔ｌ縺溘後せ繝槭�蟆ら畑縺ｮ險ｭ螳壹�繝ｭ繧ｰ繧｢繧ｦ繝医阪ｒPC荳翫〒縺ｯ螳悟�縺ｫ髱櫁｡ｨ遉ｺ */
   .topbar__nav .topbar__nav-extra-link {
     display: none !important;
   }
 
-  /* 右側の元のアカウントボタン（背景黒・文字あり）を美しく常時表示 */
+  /* 蜿ｳ蛛ｴ縺ｮ蜈��繧｢繧ｫ繧ｦ繝ｳ繝医�繧ｿ繝ｳ�郁レ譎ｯ鮟偵�譁�ｭ励≠繧奇ｼ峨ｒ鄒弱＠縺丞ｸｸ譎り｡ｨ遉ｺ */
   .account-button {
     display: inline-flex !important;
     align-items: center !important;
     gap: 8px !important;
-    background-color: #000000 !important; /* 背景は黒 */
-    color: #ffffff !important;            /* 文字は白 */
+    background-color: #000000 !important; /* 閭梧勹縺ｯ鮟� */
+    color: #ffffff !important;            /* 譁�ｭ励�逋ｽ */
     border: none !important;
     padding: 8px 16px !important;
     border-radius: 6px !important;
@@ -4743,12 +4927,12 @@ button:disabled {
     cursor: pointer !important;
   }
 
-  /* PCでは右側のハンバーガーボタンを絶対に隠す */
+  /* PC縺ｧ縺ｯ蜿ｳ蛛ｴ縺ｮ繝上Φ繝舌�繧ｬ繝ｼ繝懊ち繝ｳ繧堤ｵｶ蟇ｾ縺ｫ髫�縺� */
   .hamburger-button {
     display: none !important;
   }
 
-  /* 中央のナビメニューをいつもの綺麗な一行横並びスタイルに強制リセット */
+  /* 荳ｭ螟ｮ縺ｮ繝翫ン繝｡繝九Η繝ｼ繧偵＞縺､繧ゅ�邯ｺ鮗励↑荳陦梧ｨｪ荳ｦ縺ｳ繧ｹ繧ｿ繧､繝ｫ縺ｫ蠑ｷ蛻ｶ繝ｪ繧ｻ繝�ヨ */
   .topbar__nav {
     display: flex !important;
     position: static !important;
@@ -4771,7 +4955,7 @@ button:disabled {
   }
 }
 
-/* 📱 【スマホ表示：700px以下】のコントロール */
+/* 導 縲舌せ繝槭�陦ｨ遉ｺ��700px莉･荳九代�繧ｳ繝ｳ繝医Ο繝ｼ繝ｫ */
 @media (max-width: 700px) {
   .topbar {
     grid-template-columns: 1fr auto !important;
@@ -4783,12 +4967,12 @@ button:disabled {
     gap: 10px !important;
   }
 
-  /* スマホの時は、右側にあったPC用の背景黒ボタン（.account-button）をきれいに消去 */
+  /* 繧ｹ繝槭�縺ｮ譎ゅ�縲∝承蛛ｴ縺ｫ縺ゅ▲縺蘖C逕ｨ縺ｮ閭梧勹鮟偵�繧ｿ繝ｳ��.account-button�峨ｒ縺阪ｌ縺�↓豸亥悉 */
   .account-button {
     display: none !important;
   }
 
-  /* ハンバーガーボタン（三本線）を出現させる */
+  /* 繝上Φ繝舌�繧ｬ繝ｼ繝懊ち繝ｳ�井ｸ画悽邱夲ｼ峨ｒ蜃ｺ迴ｾ縺輔○繧� */
   .hamburger-button {
     display: flex !important;
     flex-direction: column !important;
@@ -4812,7 +4996,7 @@ button:disabled {
     border-radius: 2px !important;
   }
 
-  /* 4つのナビ（.topbar__nav）をスマホ時のみ縦並びポップオーバーへ変形 */
+  /* 4縺､縺ｮ繝翫ン��.topbar__nav�峨ｒ繧ｹ繝槭�譎ゅ�縺ｿ邵ｦ荳ｦ縺ｳ繝昴ャ繝励が繝ｼ繝舌�縺ｸ螟牙ｽ｢ */
   .topbar__nav {
     display: flex !important;
     flex-direction: column !important;
@@ -4832,19 +5016,19 @@ button:disabled {
     transform: translateY(-8px);
   }
 
-  /* スマホでハンバーガーメニューが開いた時 */
+  /* 繧ｹ繝槭�縺ｧ繝上Φ繝舌�繧ｬ繝ｼ繝｡繝九Η繝ｼ縺碁幕縺�◆譎� */
   .topbar__nav.is-open {
     opacity: 1 !important;
     visibility: visible !important;
     transform: translateY(0) !important;
   }
 
-  /* スマホメニューが開いた時だけ、中央に隠していた「設定・ログアウト」を縦並びメニュー内に結合表示 */
+  /* 繧ｹ繝槭�繝｡繝九Η繝ｼ縺碁幕縺�◆譎ゅ□縺代∽ｸｭ螟ｮ縺ｫ髫�縺励※縺�◆縲瑚ｨｭ螳壹�繝ｭ繧ｰ繧｢繧ｦ繝医阪ｒ邵ｦ荳ｦ縺ｳ繝｡繝九Η繝ｼ蜀�↓邨仙粋陦ｨ遉ｺ */
   .topbar__nav.is-open .topbar__nav-extra-link {
     display: flex !important;
   }
 
-  /* メニュー内のすべてのリンク（ナビ4つ＋設定＋ログアウト）を縦並び用に最適化 */
+  /* 繝｡繝九Η繝ｼ蜀��縺吶∋縺ｦ縺ｮ繝ｪ繝ｳ繧ｯ�医リ繝�4縺､�玖ｨｭ螳夲ｼ九Ο繧ｰ繧｢繧ｦ繝茨ｼ峨ｒ邵ｦ荳ｦ縺ｳ逕ｨ縺ｫ譛驕ｩ蛹� */
   .topbar__nav a {
     display: flex !important;
     align-items: center !important;
@@ -4861,13 +5045,13 @@ button:disabled {
     background: transparent !important;
   }
 
-  /* メニュー内アイテムのホバー効果 */
+  /* 繝｡繝九Η繝ｼ蜀�い繧､繝�Β縺ｮ繝帙ヰ繝ｼ蜉ｹ譫� */
   .topbar__nav a:hover,
   .topbar__nav a:active {
     background-color: var(--surface-soft) !important;
   }
 
-  /* メニュー内の仕切り線（設定ボタンのすぐ上） */
+  /* 繝｡繝九Η繝ｼ蜀��莉募�繧顔ｷ夲ｼ郁ｨｭ螳壹�繧ｿ繝ｳ縺ｮ縺吶＄荳奇ｼ� */
   .topbar__nav-settings-item {
     border-top: 1px solid var(--line) !important;
     margin-top: 4px !important;
@@ -4879,7 +5063,6 @@ button:disabled {
     border-radius: 0 0 8px 8px !important;
   }
 }
-=======
 
 /* Expired row and badge styles */
 .fridge-table tr.expired-row {
@@ -4935,4 +5118,3 @@ button:disabled {
 .summary-card.clickable:active {
   transform: scale(0.995);
 }
->>>>>>> 136e21c73542a19d8d485573298b7aa5727f7ee0
