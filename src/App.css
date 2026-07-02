@@ -3600,8 +3600,8 @@ button:disabled {
 
 .shopping-table th:nth-child(2),
 .shopping-table td:nth-child(2) {
-  width: 30%;
-  min-width: 160px;
+  width: 34%;
+  min-width: 190px;
   white-space: normal;
 }
 
@@ -3614,15 +3614,15 @@ button:disabled {
 
 .shopping-table th:nth-child(4),
 .shopping-table td:nth-child(4) {
-  width: auto;
+  width: 34%;
   min-width: 180px;
   white-space: normal;
 }
 
 .shopping-table th:nth-child(5),
 .shopping-table td:nth-child(5) {
-  width: 96px;
-  min-width: 96px;
+  width: 104px;
+  min-width: 104px;
   text-align: right;
 }
 
@@ -3630,8 +3630,34 @@ button:disabled {
   vertical-align: middle;
 }
 
+.shopping-table .ingredient-name-cell {
+  display: grid;
+  gap: 6px;
+  align-content: center;
+}
+
 .shopping-table .ingredient-name {
+  display: block;
+  min-width: 0;
+  color: var(--ink);
   font-weight: 800;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.shopping-category-pill {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1.4;
 }
 
 .shopping-item-badge {
@@ -3648,6 +3674,11 @@ button:disabled {
 .shopping-table__memo {
   color: var(--muted);
   font-size: 13px;
+  line-height: 1.55;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .shopping-item-delete-button {
@@ -3664,7 +3695,7 @@ button:disabled {
 .shopping-saved-dialog {
   display: grid;
   gap: 16px;
-  width: min(680px, 100%);
+  width: min(860px, 100%);
   max-height: min(680px, calc(100vh - 48px));
   overflow: auto;
 }
@@ -3702,6 +3733,13 @@ button:disabled {
 
   .shopping-candidate-panel {
     padding: 16px;
+  }
+
+  .shopping-table th:nth-child(2),
+  .shopping-table td:nth-child(2),
+  .shopping-table th:nth-child(4),
+  .shopping-table td:nth-child(4) {
+    min-width: 160px;
   }
 
   .shopping-recipe-grid {
