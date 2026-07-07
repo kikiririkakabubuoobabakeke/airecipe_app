@@ -95,7 +95,7 @@
   gap: 24px;
   padding: 18px clamp(20px, 4vw, 56px);
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 179, 0, 0.94);
   backdrop-filter: blur(18px);
 }
 
@@ -161,7 +161,7 @@
   min-width: 72px;
   padding: 8px 14px;
   border-radius: 6px;
-  color: var(--muted);
+  color: var(--link);
   font-size: 14px;
   font-weight: 600;
   text-align: center;
@@ -4813,7 +4813,6 @@ button:disabled {
   color: var(--muted);
   font-size: 13px;
 }
-<<<<<<< HEAD
 /* ==========================================================================
    最下部追記用：PC・スマホの完全な表示分離とハンバーガー内集約設定
    ========================================================================== */
@@ -4822,6 +4821,11 @@ button:disabled {
 @media (min-width: 701px) {
   /* 🎯 中央のナビ内に追加された「スマホ専用の設定・ログアウト」をPC上では完全に非表示 */
   .topbar__nav .topbar__nav-extra-link {
+    display: none !important;
+  }
+
+  /* 🎯 食材・生成・登録・履歴のアイコンはPCでは非表示（テキストのみ表示） */
+  .topbar__nav-icon {
     display: none !important;
   }
 
@@ -4838,6 +4842,11 @@ button:disabled {
     font-size: 14px !important;
     font-weight: 500 !important;
     cursor: pointer !important;
+  }
+
+  /* 🎯 ホーム画面下部の「買い物リスト・設定・お問い合わせ」セクションはPCでは常時表示 */
+  .secondary-section {
+    display: block !important;
   }
 
   /* PCでは右側のハンバーガーボタンを絶対に隠す */
@@ -4866,6 +4875,9 @@ button:disabled {
     padding: 10px 16px !important;
     border-radius: 20px !important;
   }
+  .topbar__nav-extra-link {
+  display: none !important;
+}
 }
 
 /* 📱 【スマホ表示：700px以下】のコントロール */
@@ -4885,6 +4897,36 @@ button:disabled {
     display: none !important;
   }
 
+  /* 🎯 ホーム画面下部の「買い物リスト・設定・お問い合わせ」セクションはスマホでは非表示（ハンバーガー内に集約済みのため） */
+  .secondary-section {
+    display: none !important;
+  }
+
+  /* 🎯 食材・生成・登録・履歴のアイコンはスマホのハンバーガーメニュー内でのみ表示 */
+  .topbar__nav-icon {
+    display: inline-flex !important;
+    align-items: center;
+  }
+  
+  .topbar__nav.is-open .topbar__nav-extra-link {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    width: 100%;
+    color: var(--ink);
+    background-color: white;
+  }
+
+  /* ボタン要素（買い物リスト・お問い合わせ）だけにフォントとリセットを適用し、設定リンクの区切り線には影響させない */
+  .topbar__nav.is-open button.topbar__nav-extra-link {
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
   /* ハンバーガーボタン（三本線）を出現させる */
   .hamburger-button {
     display: flex !important;
@@ -4976,60 +5018,3 @@ button:disabled {
     border-radius: 0 0 8px 8px !important;
   }
 }
-=======
-
-/* Expired row and badge styles */
-.fridge-table tr.expired-row {
-  background-color: rgba(var(--danger-rgb), 0.05);
-}
-.fridge-table tr.expired-row:hover {
-  background-color: rgba(var(--danger-rgb), 0.09);
-}
-
-.expiry-alert.expired-badge {
-  color: var(--danger);
-  background: rgba(var(--danger-rgb), 0.12);
-  border: 1px solid rgba(var(--danger-rgb), 0.22);
-}
-
-.expiration-expired {
-  color: var(--danger);
-  font-weight: 800;
-}
-
-/* Flash highlight animation for scrolling target */
-@keyframes row-flash-warning {
-  0% {
-    background-color: rgba(var(--warning-rgb), 0.34);
-  }
-  100% {
-    background-color: transparent;
-  }
-}
-
-@keyframes row-flash-danger {
-  0% {
-    background-color: rgba(var(--danger-rgb), 0.28);
-  }
-  100% {
-    background-color: transparent;
-  }
-}
-
-.fridge-table tr.flash-highlight-warning {
-  animation: row-flash-warning 1.2s ease-out;
-}
-
-.fridge-table tr.flash-highlight-danger {
-  animation: row-flash-danger 1.2s ease-out;
-}
-
-/* Make summary cards clickable */
-.summary-card.clickable {
-  cursor: pointer;
-  user-select: none;
-}
-.summary-card.clickable:active {
-  transform: scale(0.995);
-}
->>>>>>> 136e21c73542a19d8d485573298b7aa5727f7ee0

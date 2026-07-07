@@ -76,7 +76,7 @@ export const HeroPanel = memo(function HeroPanel({
         </div>
       </div>
 
-      <div className="meal-preview" aria-label={t('home.hero.previewAria')}>
+      {/* <div className="meal-preview" aria-label={t('home.hero.previewAria')}>
         <div className="meal-preview__image">
           <div className="plate">
             <span className="plate__rice" />
@@ -90,7 +90,7 @@ export const HeroPanel = memo(function HeroPanel({
           <h2>{t('home.hero.previewTitle')}</h2>
           <p>{t('home.hero.previewDescription')}</p>
         </div>
-      </div>
+      </div> */}
     </section>
   )
 })

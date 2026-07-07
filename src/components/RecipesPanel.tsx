@@ -31,7 +31,7 @@ export const RecipesPanel = memo(function RecipesPanel({
   isGenerating = false,
   onGenerateRecipe,
   onSelectRecipe,
-  onCookRecipe,
+  // onCookRecipe,
 }: RecipesPanelProps) {
   const { t } = useI18n()
   const visibleRecipes = useMemo(
@@ -96,7 +96,7 @@ export const RecipesPanel = memo(function RecipesPanel({
                   <span key={tag}>{tag}</span>
                 ))}
               </div>
-              {recipe.recipeId && onCookRecipe ? (
+              {/* {recipe.recipeId && onCookRecipe ? (
                 <div className="recipe-card__actions">
                   <button
                     type="button"
@@ -109,7 +109,7 @@ export const RecipesPanel = memo(function RecipesPanel({
                     {t('home.recipes.cooked')}
                   </button>
                 </div>
-              ) : null}
+              ) : null} */}
             </article>
           ))
         ) : isLoading ? (
