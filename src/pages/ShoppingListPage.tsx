@@ -55,7 +55,7 @@ const emptyManualShoppingForm: ManualShoppingForm = {
   category: '',
   quantity: '',
   gram: '',
-  unit: '個',
+  unit: '',
   memo: '',
 }
 
@@ -64,7 +64,6 @@ const CATEGORY_MEAT_EGG_FISH = '肉・卵・魚'
 const CATEGORY_VEGETABLE = '野菜'
 const CATEGORY_DAIRY = '乳製品'
 const CATEGORY_PROCESSED = '加工品'
-const DEFAULT_SHOPPING_LIST_NAME = '今日の買い物'
 
 const recipePageSize = 10
 
@@ -164,13 +163,16 @@ function isWeightUnit(unit: string | null | undefined) {
   return unit === 'g' || unit === 'ml'
 }
 
-function formatItemAmount(item: Pick<ShoppingListItem, 'quantity' | 'gram' | 'unit'>) {
+function formatItemAmount(
+  item: Pick<ShoppingListItem, 'quantity' | 'gram' | 'unit'>,
+  fallbackUnit: string,
+) {
   if (item.gram) {
     return `${item.gram}${item.unit === 'ml' ? 'ml' : 'g'}`
   }
 
   if (item.quantity) {
-    return `${item.quantity}${item.unit || '個'}`
+    return `${item.quantity}${item.unit || fallbackUnit}`
   }
 
   return '-'
@@ -222,7 +224,7 @@ function addRecipeCandidatesToShoppingItems(
       category: existing.category || candidate.category,
       quantity: nextQuantity > 0 ? nextQuantity : null,
       gram: nextGram > 0 ? nextGram : null,
-      unit: candidate.unit || existing.unit || '個',
+      unit: candidate.unit || existing.unit || null,
       memo: mergeMemoText(existing.memo, candidate.memo),
       checked: false,
     }
@@ -237,6 +239,8 @@ function getRecipeKey(recipe: Recipe) {
 
 export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
   const { language, t } = useI18n()
+  const defaultShoppingListName = t('shopping.defaultListName')
+  const defaultUnit = t('shopping.defaultUnit')
   const toastTimerRef = useRef<number | null>(null)
   const inventoryCacheKey = `inventory:${language}`
   const recipeCacheKey = `shopping-recipes:${language}`
@@ -258,11 +262,11 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     })
   const [recipeTargetListId, setRecipeTargetListId] = useState('new')
   const [recipeNewListName, setRecipeNewListName] = useState(
-    DEFAULT_SHOPPING_LIST_NAME,
+    defaultShoppingListName,
   )
   const [manualTargetListId, setManualTargetListId] = useState('new')
   const [manualNewListName, setManualNewListName] = useState(
-    DEFAULT_SHOPPING_LIST_NAME,
+    defaultShoppingListName,
   )
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<Set<string>>(
     () => new Set(),
@@ -373,7 +377,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       recipe.ingredients?.forEach((ingredient) => {
         const key = normalizeName(ingredient.name)
         const existing = requiredMap.get(key)
-        const unit = ingredient.unit || existing?.unit || '個'
+        const unit = ingredient.unit || existing?.unit || defaultUnit
         const current =
           existing ??
           ({
@@ -421,14 +425,14 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
           itemId: `candidate-${key}`,
           gram: lackGram > 0 ? Math.ceil(lackGram) : null,
           quantity: lackQuantity > 0 ? Math.ceil(lackQuantity) : null,
-          memo: `レシピ: ${Array.from(sourceRecipes).join(', ')}`,
+          memo: `${t('shopping.recipeEyebrow')}: ${Array.from(sourceRecipes).join(', ')}`,
           checked: false,
         }
       })
       .filter(
         (item): item is RecipeCandidateItem => item !== null,
       )
-  }, [inventory, recipes, selectedRecipeIds])
+  }, [defaultUnit, inventory, recipes, selectedRecipeIds, t])
 
   const activeExcludedCandidateIds = excludedCandidateIds ?? new Set<string>()
   const addableRecipeCandidateCount = recipeCandidateItems.length
@@ -448,10 +452,12 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     0,
     totalShoppingItemCount - totalCheckedShoppingItemCount,
   )
-  const listStateLabel = isSaving ? '保存中' : `${savedLists.length}リスト`
+  const listStateLabel = isSaving
+    ? t('shopping.savingShort')
+    : t('shopping.listCount', { count: savedLists.length })
   const currentListHelpText = totalShoppingItemCount
-    ? '保存済みを開くと、各買い物リストの内容を確認できます。'
-    : '下のフォームかレシピから、買うものを追加できます。'
+    ? t('shopping.overviewHelpWithItems')
+    : t('shopping.overviewHelpEmpty')
 
   function updateSavedListSummary(shoppingList: ShoppingList) {
     const summary: ShoppingListSummary = {
@@ -547,7 +553,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     return nextItems.map((item, index) => ({
       ...item,
       sortOrder: index,
-      unit: item.unit ?? '個',
+      unit: item.unit ?? defaultUnit,
       memo: item.memo ?? null,
     }))
   }
@@ -571,8 +577,8 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         options.targetListId === 'new'
           ? await createShoppingList({
               name:
-                (options.name ?? DEFAULT_SHOPPING_LIST_NAME).trim() ||
-                DEFAULT_SHOPPING_LIST_NAME,
+                (options.name ?? defaultShoppingListName).trim() ||
+                defaultShoppingListName,
               items: normalizeItemsForSave(nextItems),
             })
           : await updateShoppingList(options.targetListId, {
@@ -609,7 +615,6 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     const name = manualForm.name.trim()
 
     if (!name) {
-      showToast(t('shopping.nameRequired'))
       return
     }
 
@@ -621,7 +626,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         category: manualForm.category.trim() || inferCategory(name),
         quantity: getNumber(manualForm.quantity),
         gram: getNumber(manualForm.gram),
-        unit: manualForm.unit.trim() || '個',
+        unit: manualForm.unit.trim() || defaultUnit,
         memo: manualForm.memo.trim() || null,
         checked: false,
       },
@@ -636,7 +641,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     })
     if (manualTargetListId === 'new' && result) {
       setManualTargetListId(result.shoppingListId)
-      setManualNewListName(DEFAULT_SHOPPING_LIST_NAME)
+      setManualNewListName(defaultShoppingListName)
     }
   }
 
@@ -688,7 +693,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
     })
     if (recipeTargetListId === 'new' && result) {
       setRecipeTargetListId(result.shoppingListId)
-      setRecipeNewListName(DEFAULT_SHOPPING_LIST_NAME)
+      setRecipeNewListName(defaultShoppingListName)
     }
   }
 
@@ -783,7 +788,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       .map((item) => item.itemId as string)
 
     if (purchasedIds.length === 0) {
-      showToast('購入済みの項目を選択してください')
+      showToast(t('shopping.purchaseRequired'))
       return
     }
 
@@ -796,9 +801,9 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       )
       updateSavedListSummary(result.shoppingList)
       window.dispatchEvent(new CustomEvent('inventory-updated'))
-      showToast(`購入済み${result.importedCount}件を食品一覧に登録しました`)
+      showToast(t('shopping.importSuccess', { count: result.importedCount }))
     } catch (error) {
-      showToast(error instanceof Error ? error.message : '食品一覧への登録に失敗しました')
+      showToast(error instanceof Error ? error.message : t('shopping.importFailed'))
     } finally {
       setIsImporting(false)
     }
@@ -871,11 +876,22 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       <section className="panel settings-section shopping-panel shopping-current-panel">
         <div className="section-heading shopping-list-heading">
           <div>
-            <p className="eyebrow">買い物リスト全体</p>
-            <h2>すべての買い物リスト</h2>
-            <div className="shopping-current-meta" aria-label="買い物状況">
-              <span>未購入 {totalPendingShoppingItemCount}件</span>
-              <span>購入済み {totalCheckedShoppingItemCount}件</span>
+            <p className="eyebrow">{t('shopping.overviewEyebrow')}</p>
+            <h2>{t('shopping.overviewTitle')}</h2>
+            <div
+              className="shopping-current-meta"
+              aria-label={t('shopping.statusAria')}
+            >
+              <span>
+                {t('shopping.pendingCount', {
+                  count: totalPendingShoppingItemCount,
+                })}
+              </span>
+              <span>
+                {t('shopping.checkedCount', {
+                  count: totalCheckedShoppingItemCount,
+                })}
+              </span>
               <span>{listStateLabel}</span>
             </div>
             <p className="settings-section__description">
@@ -888,7 +904,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
               className="secondary-button"
               onClick={openSavedListDialog}
             >
-              保存済みを見る
+              {t('shopping.openSavedLists')}
             </button>
           </div>
         </div>
@@ -896,17 +912,17 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         <div className="shopping-current-summary">
           {totalShoppingItemCount === 0 ? (
             <div>
-              <strong>買うものはまだありません</strong>
-              <span>
-                レシピから不足分を追加するか、手入力で買うものを追加してください。
-              </span>
+              <strong>{t('shopping.emptySummaryTitle')}</strong>
+              <span>{t('shopping.emptySummaryDescription')}</span>
             </div>
           ) : (
             <div>
-              <strong>{totalShoppingItemCount}件の買うものがあります</strong>
-              <span>
-                すべての保存済み買い物リストを合わせた件数です。
-              </span>
+              <strong>
+                {t('shopping.totalSummaryTitle', {
+                  count: totalShoppingItemCount,
+                })}
+              </strong>
+              <span>{t('shopping.totalSummaryDescription')}</span>
             </div>
           )}
           <button
@@ -915,7 +931,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
             onClick={openSavedListDialog}
             disabled={totalShoppingItemCount === 0}
           >
-            全リストを確認
+            {t('shopping.openAllLists')}
           </button>
         </div>
       </section>
@@ -923,10 +939,10 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       <section className="shopping-panel shopping-recipe-panel">
         <div className="section-heading shopping-list-heading">
           <div>
-            <p className="eyebrow">レシピ</p>
-            <h2>レシピから不足分を追加</h2>
+            <p className="eyebrow">{t('shopping.recipeEyebrow')}</p>
+            <h2>{t('shopping.recipeAddTitle')}</h2>
             <p className="settings-section__description">
-              作りたいレシピを選ぶと、在庫との差分だけを候補にします。
+              {t('shopping.recipeAddDescription')}
             </p>
           </div>
         </div>
@@ -988,9 +1004,12 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
               <p className="eyebrow">{t('recipe.ingredientsEyebrow')}</p>
               <h2>{t('shopping.recipeCandidateTitle')}</h2>
               <p className="settings-section__description shopping-list-heading__description">
-                候補はすべて追加対象です。買わないものだけ除外にチェックしてください。
+                {t('shopping.candidateDescription')}
                 {addableRecipeCandidateCount > 0
-                  ? ` ${selectedRecipeCandidateCount} / ${addableRecipeCandidateCount}件を追加します。`
+                  ? ` ${t('shopping.candidateSelectionCount', {
+                      selected: selectedRecipeCandidateCount,
+                      total: addableRecipeCandidateCount,
+                    })}`
                   : ''}
               </p>
             </div>
@@ -1000,18 +1019,18 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
               onClick={() => void handleAddRecipeCandidates()}
               disabled={isSaving}
             >
-              {isSaving ? '保存中...' : t('shopping.moveToFridgeBtn')}
+              {isSaving ? t('shopping.savingDots') : t('shopping.moveToFridgeBtn')}
             </button>
           </div>
 
           <div className="shopping-target-row">
             <label className="settings-field">
-              <span>追加先リスト</span>
+              <span>{t('shopping.targetList')}</span>
               <select
                 value={recipeTargetListId}
                 onChange={(event) => setRecipeTargetListId(event.target.value)}
               >
-                <option value="new">新しい買い物リスト</option>
+                <option value="new">{t('shopping.newListOption')}</option>
                 {savedLists.map((list) => (
                   <option key={list.shoppingListId} value={list.shoppingListId}>
                     {list.name}
@@ -1021,7 +1040,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
             </label>
             {recipeTargetListId === 'new' ? (
               <label className="settings-field">
-                <span>新規リスト名</span>
+                <span>{t('shopping.newListName')}</span>
                 <input
                   type="text"
                   value={recipeNewListName}
@@ -1035,9 +1054,9 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
             <table className="fridge-table shopping-table">
               <thead>
                 <tr>
-                  <th>除外</th>
+                  <th>{t('shopping.exclude')}</th>
                   <th>{t('fridge.table.ingredient')}</th>
-                  <th>不足分</th>
+                  <th>{t('shopping.shortage')}</th>
                   <th>{t('fridge.table.memo')}</th>
                 </tr>
               </thead>
@@ -1051,13 +1070,15 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                           type="checkbox"
                           checked={activeExcludedCandidateIds.has(key)}
                           onChange={() => handleToggleCandidateExclusion(key)}
-                          aria-label={`${item.name}を買い物リストへの追加対象から外す`}
+                          aria-label={t('shopping.excludeItemAria', {
+                            name: item.name,
+                          })}
                         />
                       </td>
                       <td className="ingredient-name-cell">
                         <span className="ingredient-name">{item.name}</span>
                       </td>
-                      <td>{formatItemAmount(item)}</td>
+                      <td>{formatItemAmount(item, defaultUnit)}</td>
                       <td className="shopping-table__memo">{item.memo || '-'}</td>
                     </tr>
                   )
@@ -1074,19 +1095,18 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       >
         <div className="section-heading">
           <div>
-            <p className="eyebrow">{t('shopping.memoEyebrow')}</p>
             <h2 id="shopping-manual-title">{t('shopping.addNewTitle')}</h2>
           </div>
         </div>
         <form onSubmit={handleAddManualItem}>
           <div className="shopping-target-row">
             <label className="settings-field">
-              <span>追加先リスト</span>
+              <span>{t('shopping.targetList')}</span>
               <select
                 value={manualTargetListId}
                 onChange={(event) => setManualTargetListId(event.target.value)}
               >
-                <option value="new">新しい買い物リスト</option>
+                <option value="new">{t('shopping.newListOption')}</option>
                 {savedLists.map((list) => (
                   <option key={list.shoppingListId} value={list.shoppingListId}>
                     {list.name}
@@ -1096,7 +1116,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
             </label>
             {manualTargetListId === 'new' ? (
               <label className="settings-field">
-                <span>新規リスト名</span>
+                <span>{t('shopping.newListName')}</span>
                 <input
                   type="text"
                   value={manualNewListName}
@@ -1151,11 +1171,11 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
           </div>
           <div className="shopping-form-grid shopping-form-grid--footer">
             <label className="settings-field">
-              <span>単位</span>
+              <span>{t('shopping.unit')}</span>
               <input
                 type="text"
                 value={manualForm.unit}
-                placeholder="個 / 本 / 袋 / g / ml"
+                placeholder={t('shopping.unitPlaceholder')}
                 onChange={(event) => updateManualForm('unit', event.target.value)}
               />
             </label>
@@ -1168,9 +1188,13 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                 onChange={(event) => updateManualForm('memo', event.target.value)}
               />
             </label>
-            <button type="submit" className="primary-button" disabled={isSaving}>
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={isSaving || !manualForm.name.trim()}
+            >
               <Icon name="plus" />
-              <span>{isSaving ? '保存中...' : t('shopping.addBtn')}</span>
+              <span>{isSaving ? t('shopping.savingDots') : t('shopping.addBtn')}</span>
             </button>
           </div>
         </form>
@@ -1191,7 +1215,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
           >
             <div className="section-heading shopping-list-heading">
               <div>
-                <p className="eyebrow">保存済み</p>
+                <p className="eyebrow">{t('shopping.savedEyebrow')}</p>
                 <h2 id="shopping-saved-dialog-title">
                   {t('shopping.loadListTitle')}
                 </h2>
@@ -1214,10 +1238,11 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                         count: selectedSavedList.items.length,
                       })}
                       {selectedSavedList.items.some((item) => item.checked)
-                        ? ` / 購入済み${
-                            selectedSavedList.items.filter((item) => item.checked)
-                              .length
-                          }`
+                        ? t('shopping.checkedSuffix', {
+                            count: selectedSavedList.items.filter(
+                              (item) => item.checked,
+                            ).length,
+                          })
                         : ''}
                     </span>
                   </div>
@@ -1227,7 +1252,7 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                       className="secondary-button"
                       onClick={() => setSelectedSavedList(null)}
                     >
-                      一覧に戻る
+                      {t('shopping.backToList')}
                     </button>
                     <button
                       type="button"
@@ -1238,23 +1263,26 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                       }
                       onClick={() => void handleImportSelectedSavedListPurchased()}
                     >
-                      {isImporting ? '登録中...' : '購入済みを食品一覧に登録'}
+                      {isImporting
+                        ? t('shopping.importing')
+                        : t('shopping.importPurchased')}
                     </button>
                   </div>
                 </div>
 
                 {selectedSavedList.items.length === 0 ? (
                   <p className="settings-section__description">
-                    このリストには買うものがありません。
+                    {t('shopping.emptySavedList')}
                   </p>
                 ) : (
                   <div className="table-container">
-                    <table className="fridge-table shopping-table">
+                    <table className="fridge-table shopping-table shopping-saved-items-table">
                       <thead>
                         <tr>
-                          <th>購入</th>
+                          <th>{t('shopping.purchasedColumn')}</th>
                           <th>{t('fridge.table.ingredient')}</th>
-                          <th>量</th>
+                          <th>{t('fridge.form.category')}</th>
+                          <th>{t('shopping.amountColumn')}</th>
                           <th>{t('fridge.table.memo')}</th>
                           <th>{t('fridge.table.actions')}</th>
                         </tr>
@@ -1269,16 +1297,18 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                                 onChange={() =>
                                   handleToggleSavedListItem(item.itemId)
                                 }
-                                aria-label={`${item.name}を購入済みにする`}
+                                aria-label={t('shopping.markPurchasedAria', {
+                                  name: item.name,
+                                })}
                               />
                             </td>
                             <td className="ingredient-name-cell">
                               <span className="ingredient-name">{item.name}</span>
-                              <small>
-                                {getCategoryLabel(item.category || CATEGORY_OTHER)}
-                              </small>
                             </td>
-                            <td>{formatItemAmount(item)}</td>
+                            <td className="shopping-table__category">
+                              {getCategoryLabel(item.category || CATEGORY_OTHER)}
+                            </td>
+                            <td>{formatItemAmount(item, defaultUnit)}</td>
                             <td className="shopping-table__memo">
                               {item.memo || '-'}
                             </td>
@@ -1321,7 +1351,11 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                       <span>{list.name}</span>
                       <small>
                         {t('shopping.itemCount', { count: list.itemCount })}
-                        {list.checkedCount ? ` / 購入済み${list.checkedCount}` : ''}
+                        {list.checkedCount
+                          ? t('shopping.checkedSuffix', {
+                              count: list.checkedCount,
+                            })
+                          : ''}
                       </small>
                     </button>
                     <button
