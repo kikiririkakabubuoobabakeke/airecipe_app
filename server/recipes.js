@@ -1,6 +1,11 @@
 import { createGroqChatCompletion, defaultGroqModel } from './groq.js'
 import { defaultGeminiModel, generateGeminiContent } from './gemini.js'
 import { isSupabaseServiceRoleConfigured, supabase } from './supabase.js'
+import {
+  localizeCategory,
+  normalizeCategoryValue,
+  resolveCategory,
+} from './categories.js'
 
 const demoUserId = process.env.AI_RECIPE_DEMO_USER_ID
 
@@ -153,12 +158,17 @@ function mapInventoryRows(rows, language = 'ja') {
 
   return rows.map((row) => {
     const ingredient = row.ingredient_management
+    const category = resolveCategory({
+      category: ingredient?.category,
+      name: ingredient?.ingredient_name,
+    })
 
     return {
       inventoryId: row.inventory_id,
       ingredientId: row.ingredient_id,
       name: ingredient?.ingredient_name ?? text.noName,
-      category: ingredient?.category ?? null,
+      category,
+      categoryLabel: localizeCategory(category, normalizeLanguage(language)),
       quantity: row.quantity ?? 0,
       gram: row.gram ?? 0,
       amount: formatAmount(row, language),
@@ -200,49 +210,10 @@ function normalizeIngredientNameForMatch(value) {
 }
 
 function normalizeInventoryCategory(category, name) {
-  const value = sanitizeText(category)
-
-  if (value === 'meatEggFish' || value === '肉' || value === '魚' || value === '卵') {
-    return '肉・卵・魚'
-  }
-
-  if (value === 'vegetable') {
-    return '野菜'
-  }
-
-  if (value === 'dairy') {
-    return '乳製品'
-  }
-
-  if (value === 'processed') {
-    return '加工品'
-  }
-
-  if (value && value !== 'other' && value !== 'その他') {
-    return value
-  }
-
-  if (/(小松菜|玉ねぎ|玉葱|キャベツ|にんじん|人参|じゃがいも|馬鈴薯|トマト|野菜|ねぎ|白菜|大根|ピーマン|きのこ|しめじ|えのき|しいたけ)/u.test(name)) {
-    return '野菜'
-  }
-
-  if (/(鮭|サーモン|魚|さば|鯖|さんま|まぐろ|刺身|豚|鶏|牛|肉|卵|玉子|たまご|ハム|ベーコン|ウインナー|ソーセージ)/u.test(name)) {
-    return '肉・卵・魚'
-  }
-
-  if (/(牛乳|チーズ|ヨーグルト|バター|乳)/u.test(name)) {
-    return '乳製品'
-  }
-
-  if (/(納豆|豆腐|ちくわ|缶|冷凍|惣菜|加工)/u.test(name)) {
-    return '加工品'
-  }
-
-  if (/(米|白米|パン|麺|うどん|そば|パスタ)/u.test(name)) {
-    return '加工品'
-  }
-
-  return 'その他'
+  return resolveCategory({
+    category: sanitizeText(category),
+    name,
+  })
 }
 
 function sanitizeInventoryPayload(payload) {
@@ -282,7 +253,7 @@ async function findOrCreateIngredientForInventory({ client, userId, item }) {
 
   if (existing) {
     const updateData = {}
-    if ((existing.category ?? '') !== item.category) {
+    if (!normalizeCategoryValue(existing.category) && item.category) {
       updateData.category = item.category
     }
     if (item.isOpened !== undefined && existing.is_opened !== item.isOpened) {

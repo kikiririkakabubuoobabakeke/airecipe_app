@@ -59,6 +59,7 @@ export type Ingredient = {
   amount: string
   status: string
   category?: string | null
+  categoryLabel?: string | null
   quantity?: number
   gram?: number
   expirationDate?: string | null

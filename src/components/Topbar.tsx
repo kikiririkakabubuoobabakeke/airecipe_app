@@ -349,6 +349,7 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
         </span>
       </a>
 
+<<<<<<< HEAD
       {/* 💡 スマホ時はハンバーガーの中に早変わりするナビメニュー */}
       <nav className={`topbar__nav ${isMenuOpen ? 'is-open' : ''}`} aria-label={t('topbar.menuLabel')}>
         <a
@@ -447,6 +448,22 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
               <span>{feature.title}</span>
             </button>
           ))}
+=======
+      <nav className="topbar__nav" aria-label={t('topbar.menuLabel')}>
+        {navigationItems.map((item) => (
+          <a
+            key={item.page}
+            className={currentPage === item.page ? 'active' : ''}
+            href={item.href}
+            onClick={(event) => {
+              event.preventDefault()
+              navigateTo(item.page)
+            }}
+          >
+            {item.label}
+          </a>
+        ))}
+>>>>>>> 0d5b548fbc5ebdfba114c65ae583e950882f7c0c
       </nav>
 
       <div className="topbar__actions">
@@ -555,7 +572,6 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
           )}
         </div>
 
-        {/* 🖥️ PC上のみ：背景が黒、文字を表示する設定ボタン（スマホ時はCSSで非表示） */}
         <button
           type="button"
           className="account-button topbar__desktop-action"
@@ -564,8 +580,11 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
           <Icon name="settings" />
           <span>{t('topbar.settings')}</span>
         </button>
+<<<<<<< HEAD
 
         {/* 🖥️ PC上のみ：背景が黒、文字を表示するログアウトボタン（スマホ時はCSSで非表示） */}
+=======
+>>>>>>> 0d5b548fbc5ebdfba114c65ae583e950882f7c0c
         {onLogout ? (
           <button
             type="button"

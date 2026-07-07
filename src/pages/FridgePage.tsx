@@ -442,7 +442,10 @@ export function FridgePage({
           '肉・卵・魚',
           '野菜',
           '乳製品',
+          '主食',
+          '調味料',
           '加工品',
+          '飲料',
           'その他',
           ...ingredients
             .map((item) => item.category?.trim())
@@ -498,8 +501,14 @@ export function FridgePage({
         return t('category.vegetable')
       case '乳製品':
         return t('category.dairy')
+      case '主食':
+        return t('category.staple')
+      case '調味料':
+        return t('category.seasoning')
       case '加工品':
         return t('category.processed')
+      case '飲料':
+        return t('category.drink')
       case 'その他':
         return t('category.other')
       default:
