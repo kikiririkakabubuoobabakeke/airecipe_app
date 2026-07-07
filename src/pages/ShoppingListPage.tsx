@@ -1274,9 +1274,9 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
                             </td>
                             <td className="ingredient-name-cell">
                               <span className="ingredient-name">{item.name}</span>
-                              <span className="shopping-category-pill">
+                              <small>
                                 {getCategoryLabel(item.category || CATEGORY_OTHER)}
-                              </span>
+                              </small>
                             </td>
                             <td>{formatItemAmount(item)}</td>
                             <td className="shopping-table__memo">

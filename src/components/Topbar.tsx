@@ -528,7 +528,6 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
           )}
         </div>
 
-        {/* 🖥️ PC上のみ：背景が黒、文字を表示する設定ボタン（スマホ時はCSSで非表示） */}
         <button
           type="button"
           className="account-button topbar__desktop-action"
@@ -537,8 +536,6 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
           <Icon name="settings" />
           <span>{t('topbar.settings')}</span>
         </button>
-        
-        {/* 🖥️ PC上のみ：背景が黒、文字を表示するログアウトボタン（スマホ時はCSSで非表示） */}
         {onLogout ? (
           <button
             type="button"
