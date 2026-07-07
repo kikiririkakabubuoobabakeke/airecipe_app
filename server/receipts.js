@@ -1,5 +1,6 @@
 import { createGroqChatCompletion, defaultGroqModel } from './groq.js'
 import { isSupabaseServiceRoleConfigured, supabase } from './supabase.js'
+import { normalizeCategoryValue, resolveCategory } from './categories.js'
 
 const demoUserId = process.env.AI_RECIPE_DEMO_USER_ID
 
@@ -39,20 +40,6 @@ function addDaysIsoDate(days) {
   return date.toISOString().slice(0, 10)
 }
 
-const validCategories = new Set([
-  '野菜',
-  '肉・卵・魚',
-  '肉',
-  '魚',
-  '卵',
-  '乳製品',
-  '主食',
-  '調味料',
-  '加工品',
-  '飲料',
-  'その他',
-])
-
 const ignoredLinePattern =
   /(合計|小計|税込|税率|消費税|現計|釣銭|お預り|お預かり|ポイント|袋|レジ|領収|電話|TEL|カード|クレジット|割引|値引|対象|店舗|担当|No\.|合計点数|買上|お買上|単価|外税|内税|軽減|登録番号|インボイス|ありがとうございました)/i
 
@@ -74,68 +61,12 @@ const nameCorrections = [
   [/^(トウフ|豆腐).*$/iu, '豆腐'],
 ]
 
-function inferCategory(name, category) {
-  if (category === '肉' || category === '魚' || category === '卵') {
-    return '肉・卵・魚'
-  }
-
-  if (
-    category === 'meatEggFish' ||
-    category === 'vegetable' ||
-    category === 'dairy' ||
-    category === 'processed' ||
-    category === 'other'
-  ) {
-    return {
-      meatEggFish: '肉・卵・魚',
-      vegetable: '野菜',
-      dairy: '乳製品',
-      processed: '加工品',
-      other: 'その他',
-    }[category]
-  }
-
-  if (validCategories.has(category)) {
-    return category
-  }
-
-  if (/(小松菜|玉ねぎ|キャベツ|にんじん|じゃがいも|トマト|野菜|ねぎ|白菜|大根)/u.test(name)) {
-    return '野菜'
-  }
-
-  if (/(鮭|サーモン|魚|さば|鯖|さんま|まぐろ|刺身)/u.test(name)) {
-    return '肉・卵・魚'
-  }
-
-  if (/(豚|鶏|牛肉|肉|ハム|ベーコン|ウインナー)/u.test(name)) {
-    return '肉・卵・魚'
-  }
-
-  if (/(卵|玉子|たまご)/u.test(name)) {
-    return '肉・卵・魚'
-  }
-
-  if (/(牛乳|チーズ|ヨーグルト|乳)/u.test(name)) {
-    return '乳製品'
-  }
-
-  if (/(米|パン|麺|うどん|そば|パスタ)/u.test(name)) {
-    return '主食'
-  }
-
-  if (/(醤油|しょうゆ|味噌|みそ|塩|砂糖|油|ソース|だし)/u.test(name)) {
-    return '調味料'
-  }
-
-  if (/(納豆|豆腐|ちくわ|缶|冷凍|惣菜)/u.test(name)) {
-    return '加工品'
-  }
-
-  if (/(茶|水|ジュース|飲料|コーヒー)/u.test(name)) {
-    return '飲料'
-  }
-
-  return 'その他'
+function inferCategory(name, category, options = {}) {
+  return resolveCategory({
+    category,
+    name,
+    inferWhenOther: options.inferWhenOther === true,
+  })
 }
 
 function normalizeIngredientName(name) {
@@ -170,14 +101,15 @@ function inferQuantityFromText(text) {
 }
 
 function normalizeCategory(category) {
-  const value = String(category ?? '').trim()
-  return validCategories.has(value) ? value : 'その他'
+  return normalizeCategoryValue(category) ?? ''
 }
 
-function normalizeItem(item, index) {
+function normalizeItem(item, index, options = {}) {
   const sourceText = String(item?.sourceLine ?? item?.name ?? '')
   const name = normalizeIngredientName(item?.name)
-  const category = inferCategory(name, normalizeCategory(item?.category))
+  const category = inferCategory(name, normalizeCategory(item?.category), {
+    inferWhenOther: options.inferWhenOther === true,
+  })
   const quantity =
     item?.quantity === null || item?.quantity === undefined
       ? inferQuantityFromText(sourceText)
@@ -200,9 +132,9 @@ function normalizeItem(item, index) {
   }
 }
 
-function normalizeReceiptItems(items) {
+function normalizeReceiptItems(items, options = {}) {
   return (Array.isArray(items) ? items : [])
-    .map(normalizeItem)
+    .map((item, index) => normalizeItem(item, index, options))
     .filter((item) => item.name)
 }
 
@@ -292,7 +224,7 @@ export function fallbackParseReceiptText(ocrText) {
     return {
       id: `receipt-${index + 1}`,
       name,
-      category: inferCategory(name, 'その他'),
+      category: inferCategory(name, null),
       quantity: inferQuantityFromText(line) ?? 1,
       gram: inferGramFromText(line),
       bestBeforeDate: null,
@@ -343,7 +275,9 @@ export async function parseReceiptText({ ocrText, registrationDate }) {
     }
 
     const payload = parseJsonFromModel(content)
-    const items = normalizeReceiptItems(payload.items).filter((item) =>
+    const items = normalizeReceiptItems(payload.items, {
+      inferWhenOther: true,
+    }).filter((item) =>
       productLines.length
         ? productLines.some((line) =>
             line.includes(item.name) ||

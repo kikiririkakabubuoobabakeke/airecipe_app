@@ -27,7 +27,13 @@ function getDaysForCategory(category: string) {
       return 5
     case '乳製品':
       return 7
+    case '主食':
+      return 30
+    case '調味料':
+      return 90
     case '加工品':
+      return 14
+    case '飲料':
       return 14
     default:
       return 7
@@ -88,7 +94,10 @@ export function ReceiptDetailRegisterPage({
     { value: '肉・卵・魚', label: t('category.meatEggFish') },
     { value: '野菜', label: t('category.vegetable') },
     { value: '乳製品', label: t('category.dairy') },
+    { value: '主食', label: t('category.staple') },
+    { value: '調味料', label: t('category.seasoning') },
     { value: '加工品', label: t('category.processed') },
+    { value: '飲料', label: t('category.drink') },
     { value: 'その他', label: t('category.other') },
   ]
 

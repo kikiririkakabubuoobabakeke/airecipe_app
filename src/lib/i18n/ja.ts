@@ -522,7 +522,10 @@ export const jaMessages = {
   'category.meatEggFish': '肉・卵・魚',
   'category.vegetable': '野菜',
   'category.dairy': '乳製品',
+  'category.staple': '主食',
+  'category.seasoning': '調味料',
   'category.processed': '加工品',
+  'category.drink': '飲料',
   'category.other': 'その他',
   'login.email': 'メールアドレス',
   'login.emailDelayNotice':

@@ -544,7 +544,10 @@ export const frMessages: Record<MessageKey, string> = {
   'category.meatEggFish': 'Viande, œufs, poisson',
   'category.vegetable': 'Légumes',
   'category.dairy': 'Produits laitiers',
+  'category.staple': 'Féculents',
+  'category.seasoning': 'Assaisonnements',
   'category.processed': 'Produits transformés',
+  'category.drink': 'Boissons',
   'category.other': 'Autre',
   'login.email': 'Adresse e-mail',
   'login.emailDelayNotice':

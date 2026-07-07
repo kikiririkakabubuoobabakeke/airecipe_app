@@ -533,7 +533,10 @@ export const enMessages: Record<MessageKey, string> = {
   'category.meatEggFish': 'Meat, eggs, fish',
   'category.vegetable': 'Vegetables',
   'category.dairy': 'Dairy',
+  'category.staple': 'Staples',
+  'category.seasoning': 'Seasonings',
   'category.processed': 'Processed foods',
+  'category.drink': 'Drinks',
   'category.other': 'Other',
   'login.email': 'Email address',
   'login.emailDelayNotice':

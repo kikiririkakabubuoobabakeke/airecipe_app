@@ -63,7 +63,10 @@ const CATEGORY_OTHER = 'その他'
 const CATEGORY_MEAT_EGG_FISH = '肉・卵・魚'
 const CATEGORY_VEGETABLE = '野菜'
 const CATEGORY_DAIRY = '乳製品'
+const CATEGORY_STAPLE = '主食'
+const CATEGORY_SEASONING = '調味料'
 const CATEGORY_PROCESSED = '加工品'
+const CATEGORY_DRINK = '飲料'
 
 const recipePageSize = 10
 
@@ -115,18 +118,47 @@ const categoryWords = {
     'butter',
     'yogurt',
   ],
-  [CATEGORY_PROCESSED]: [
-    '加工',
+  [CATEGORY_STAPLE]: [
     '米',
     '白米',
+    'ご飯',
     'パン',
     'パスタ',
     '麺',
-    '豆腐',
-    '缶',
+    'うどん',
+    'そば',
     'rice',
     'bread',
     'pasta',
+    'noodle',
+  ],
+  [CATEGORY_PROCESSED]: [
+    '加工',
+    '豆腐',
+    '缶',
+    '冷凍',
+    '惣菜',
+  ],
+  [CATEGORY_SEASONING]: [
+    '醤油',
+    'しょうゆ',
+    '味噌',
+    'みそ',
+    '塩',
+    '砂糖',
+    '油',
+    'ソース',
+    'だし',
+    'seasoning',
+  ],
+  [CATEGORY_DRINK]: [
+    '茶',
+    '水',
+    'ジュース',
+    '飲料',
+    'コーヒー',
+    'drink',
+    'beverage',
   ],
 }
 
@@ -512,8 +544,14 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
         return t('category.vegetable')
       case CATEGORY_DAIRY:
         return t('category.dairy')
+      case CATEGORY_STAPLE:
+        return t('category.staple')
+      case CATEGORY_SEASONING:
+        return t('category.seasoning')
       case CATEGORY_PROCESSED:
         return t('category.processed')
+      case CATEGORY_DRINK:
+        return t('category.drink')
       case CATEGORY_OTHER:
         return t('category.other')
       default:
