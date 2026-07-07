@@ -455,9 +455,6 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
   const listStateLabel = isSaving
     ? t('shopping.savingShort')
     : t('shopping.listCount', { count: savedLists.length })
-  const currentListHelpText = totalShoppingItemCount
-    ? t('shopping.overviewHelpWithItems')
-    : t('shopping.overviewHelpEmpty')
 
   function updateSavedListSummary(shoppingList: ShoppingList) {
     const summary: ShoppingListSummary = {
@@ -876,7 +873,6 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
       <section className="panel settings-section shopping-panel shopping-current-panel">
         <div className="section-heading shopping-list-heading">
           <div>
-            <p className="eyebrow">{t('shopping.overviewEyebrow')}</p>
             <h2>{t('shopping.overviewTitle')}</h2>
             <div
               className="shopping-current-meta"
@@ -894,45 +890,17 @@ export function ShoppingListPage({ onNavigate }: ShoppingListPageProps) {
               </span>
               <span>{listStateLabel}</span>
             </div>
-            <p className="settings-section__description">
-              {currentListHelpText}
-            </p>
           </div>
           <div className="shopping-list-actions">
             <button
               type="button"
               className="secondary-button"
               onClick={openSavedListDialog}
+              disabled={totalShoppingItemCount === 0}
             >
-              {t('shopping.openSavedLists')}
+              {t('shopping.openAllLists')}
             </button>
           </div>
-        </div>
-
-        <div className="shopping-current-summary">
-          {totalShoppingItemCount === 0 ? (
-            <div>
-              <strong>{t('shopping.emptySummaryTitle')}</strong>
-              <span>{t('shopping.emptySummaryDescription')}</span>
-            </div>
-          ) : (
-            <div>
-              <strong>
-                {t('shopping.totalSummaryTitle', {
-                  count: totalShoppingItemCount,
-                })}
-              </strong>
-              <span>{t('shopping.totalSummaryDescription')}</span>
-            </div>
-          )}
-          <button
-            type="button"
-            className="secondary-button"
-            onClick={openSavedListDialog}
-            disabled={totalShoppingItemCount === 0}
-          >
-            {t('shopping.openAllLists')}
-          </button>
         </div>
       </section>
 

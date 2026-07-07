@@ -3133,8 +3133,8 @@ button:disabled {
 .shopping-current-panel {
   order: 1;
   display: grid;
-  gap: 14px;
-  padding: 18px;
+  gap: 10px;
+  padding: 14px 16px;
 }
 
 .shopping-current-panel .settings-field {
@@ -3184,20 +3184,20 @@ button:disabled {
 .shopping-current-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
+  gap: 6px;
+  margin-top: 8px;
 }
 
 .shopping-current-meta span {
   display: inline-flex;
-  min-height: 28px;
+  min-height: 24px;
   align-items: center;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0 10px;
+  padding: 0 9px;
   background: var(--surface-soft);
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
 }
 
