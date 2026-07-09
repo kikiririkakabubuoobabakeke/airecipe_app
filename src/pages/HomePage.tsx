@@ -395,7 +395,7 @@ export function HomePage({
     <>
       <main className="home">
         <HeroPanel
-          isGenerating={isGenerating}
+          isGenerating={isGenerating}          
           onGenerateRecipe={() => onNavigate?.('recipe-generate')}
           onAddIngredient={() => onNavigate?.('fridge')}
           onScanReceipt={() => onNavigate?.('ingredient-register')}
@@ -416,6 +416,7 @@ export function HomePage({
               ingredients={ingredients}
               isLoading={loadingState.ingredients}
               onAddIngredient={() => onNavigate?.('ingredient-register')}
+              onViewAll={() => onNavigate?.('fridge')}
             />
             <RecipesPanel
               recipes={recipes}
