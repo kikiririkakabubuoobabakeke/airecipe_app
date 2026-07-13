@@ -69,7 +69,7 @@ export const jaMessages = {
   'home.ingredients.add': '登録',
   'home.ingredients.empty':
     '食材がまだ登録されていません。レシート登録から食材を追加してください。',
-  'home.ingredients.expandMore': '他{remaining}件を表示',
+  'home.ingredients.expandMore': 'もっと見る',
   'home.ingredients.expandLess': '折りたたむ',
   'home.recipes.eyebrow': 'レシピ候補',
   'home.recipes.title': '在庫から作れる献立',

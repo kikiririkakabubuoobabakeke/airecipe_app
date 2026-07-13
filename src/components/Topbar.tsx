@@ -9,6 +9,7 @@ import {
 import { fetchInventory } from '../lib/recipeApi'
 import { fetchPreferences, defaultPreferences } from '../lib/preferencesApi'
 import type { AppDestination, Ingredient, UserPreferences } from '../types/ui'
+import { getSecondaryFeatures } from '../data/home';
 
 type TopbarProps = {
   currentPage?: string
@@ -130,7 +131,7 @@ function getExpiringInfo(ingredient: Ingredient, leadDays: number) {
   return null
 }
 
-export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
+export function Topbar({ onNavigate, onLogout }: TopbarProps) {
   const { language, t } = useI18n()
   const [isOpen, setIsOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -142,6 +143,15 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
   )
   const notificationRef = useRef<HTMLDivElement | null>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const navRef = useRef<HTMLElement | null>(null)
+  const secondaryFeatures = useMemo(() => getSecondaryFeatures(t), [t]);
+
+  const getDestination = (action: string): AppDestination | undefined => {
+    if (action === t('home.feature.shoppingAction')) return 'shopping-list';
+    if (action === t('home.secondary.settingsAction')) return 'settings';
+    if (action === t('home.secondary.contactAction')) return 'contact';
+    return undefined;
+  };
 
   const loadInventoryAndPreferences = useCallback(() => {
     void Promise.all([
@@ -230,7 +240,11 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
         setIsOpen(false)
       }
 
-      if (isMenuOpen && !menuRef.current?.contains(target)) {
+      if (
+        isMenuOpen &&
+        !menuRef.current?.contains(target) &&
+        !navRef.current?.contains(target)
+      ) {
         setIsMenuOpen(false)
       }
     }
@@ -275,17 +289,6 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
   const unreadMessages = userMessages.filter((message) => !message.readAt)
   const unreadNotificationCount =
     unreadExpirationCount + unreadMessages.length
-
-  const navigationItems: Array<{
-    page: AppDestination
-    href: string
-    label: string
-  }> = [
-    { page: 'fridge', href: '#ingredients', label: t('topbar.ingredients') },
-    { page: 'recipe-generate', href: '#recipes', label: t('topbar.recipes') },
-    { page: 'ingredient-register', href: '#receipt', label: t('topbar.receipt') },
-    { page: 'history', href: '#history', label: t('topbar.history') },
-  ]
 
   function navigateTo(page: AppDestination) {
     setIsMenuOpen(false)
@@ -351,20 +354,120 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
         </span>
       </a>
 
-      <nav className="topbar__nav" aria-label={t('topbar.menuLabel')}>
-        {navigationItems.map((item) => (
+      {/* 💡 スマホ時はハンバーガーの中に早変わりするナビメニュー */}
+      <nav className={`topbar__nav ${isMenuOpen ? 'is-open' : ''}`} aria-label={t('topbar.menuLabel')} ref={navRef}>
+        <a
+          href="#ingredients"
+          onClick={(event) => {
+            event.preventDefault()
+            setIsMenuOpen(false)
+            onNavigate?.('fridge')
+          }}
+        >
+          <span className="topbar__nav-icon"><Icon name="basket" /></span>
+          <span>{t('topbar.ingredients')}</span>
+        </a>
+        <a
+          href="#recipes"
+          onClick={(event) => {
+            event.preventDefault()
+            setIsMenuOpen(false)
+            onNavigate?.('recipe-generate')
+          }}
+        >
+          <span className="topbar__nav-icon"><Icon name="spark" /></span>
+          <span>{t('topbar.recipes')}</span>
+        </a>
+        <a
+          href="#receipt"
+          onClick={(event) => {
+            event.preventDefault()
+            setIsMenuOpen(false)
+            onNavigate?.('receipt')
+          }}
+        >
+          <span className="topbar__nav-icon"><Icon name="camera" /></span>
+          <span>{t('topbar.receipt')}</span>
+        </a>
+        <a
+          href="#history"
+          onClick={(event) => {
+            event.preventDefault()
+            setIsMenuOpen(false)
+            onNavigate?.('history')
+          }}
+        >
+          <span className="topbar__nav-icon"><Icon name="clock" /></span>
+          <span>{t('topbar.history')}</span>
+        </a>
+
+        {/* 📱 買い物リストは上のグループ（食材/生成/登録/履歴）と一緒に表示 */}
+        {secondaryFeatures
+          .filter((feature) => feature.icon === 'list')
+          .map((feature) => (
+            <button
+              key={feature.title}
+              type="button"
+              className="topbar__nav-extra-link"
+              onClick={() => {
+                setIsMenuOpen(false)
+                const dest = getDestination(feature.action)
+                if (dest && onNavigate) onNavigate(dest)
+              }}
+            >
+              <Icon name={feature.icon as any} />
+              <span>{feature.title}</span>
+            </button>
+          ))}
+
+        {/* 📱 スマホ時専用：ハンバーガーの中にだけ出現させる設定（PC時はCSSで完全非表示） */}
+        <a
+          href="#settings"
+          className="topbar__nav-extra-link topbar__nav-settings-item"
+          onClick={(event) => {
+            event.preventDefault()
+            setIsMenuOpen(false)
+            onNavigate?.('settings')
+          }}
+        >
+          <Icon name="settings" />
+          <span>{t('topbar.settings')}</span>
+        </a>
+
+        {/* 📱 スマホ時専用：ハンバーガーの中にだけ出現させるログアウト以外の付随機能（PC時はCSSで完全非表示） */}
+        {secondaryFeatures
+          .filter((feature) => feature.icon !== 'settings' && feature.icon !== 'list')
+          .map((feature) => (
+            <button
+              key={feature.title}
+              type="button"
+              className="topbar__nav-extra-link"
+              onClick={() => {
+                setIsMenuOpen(false);
+                const dest = getDestination(feature.action);
+                if (dest && onNavigate) onNavigate(dest);
+              }}
+            >
+              <Icon name={feature.icon as any} />
+              <span>{feature.title}</span>
+            </button>
+          ))}
+
+        {/* 📱 スマホ時専用：ログアウトは一番下・黒背景（PC時はCSSで完全非表示） */}
+        {onLogout ? (
           <a
-            key={item.page}
-            className={currentPage === item.page ? 'active' : ''}
-            href={item.href}
+            href="#logout"
+            className="topbar__nav-extra-link topbar__nav-logout-item"
             onClick={(event) => {
               event.preventDefault()
-              navigateTo(item.page)
+              setIsMenuOpen(false)
+              void onLogout()
             }}
           >
-            {item.label}
+            <Icon name="user" />
+            <span>{t('common.logout')}</span>
           </a>
-        ))}
+        ) : null}
       </nav>
 
       <div className="topbar__actions">
@@ -384,61 +487,6 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
             <span aria-hidden="true" />
             <span aria-hidden="true" />
           </button>
-
-          {isMenuOpen ? (
-            <div
-              id="mobile-navigation-menu"
-              className="mobile-menu__panel"
-              role="menu"
-              aria-label={t('topbar.menuLabel')}
-            >
-              {navigationItems.map((item) => (
-                <a
-                  key={item.page}
-                  className={`mobile-menu__item ${
-                    currentPage === item.page ? 'is-active' : ''
-                  }`}
-                  href={item.href}
-                  role="menuitem"
-                  onClick={(event) => {
-                    event.preventDefault()
-                    navigateTo(item.page)
-                  }}
-                >
-                  <span>{item.label}</span>
-                </a>
-              ))}
-
-              <div className="mobile-menu__separator" role="presentation" />
-
-              <button
-                type="button"
-                className={`mobile-menu__item ${
-                  currentPage === 'settings' ? 'is-active' : ''
-                }`}
-                role="menuitem"
-                onClick={() => navigateTo('settings')}
-              >
-                <Icon name="settings" />
-                <span>{t('topbar.settings')}</span>
-              </button>
-              {onLogout ? (
-                <button
-                  type="button"
-                  className="mobile-menu__item mobile-menu__item--danger"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsMenuOpen(false)
-                    setIsOpen(false)
-                    void onLogout()
-                  }}
-                >
-                  <Icon name="user" />
-                  <span>{t('common.logout')}</span>
-                </button>
-              ) : null}
-            </div>
-          ) : null}
         </div>
 
         <div
@@ -528,6 +576,7 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
           )}
         </div>
 
+        {/* 🖥️ PC上のみ：背景が黒、文字を表示する設定ボタン（スマホ時はCSSで非表示） */}
         <button
           type="button"
           className="account-button topbar__desktop-action"
@@ -536,6 +585,8 @@ export function Topbar({ currentPage, onNavigate, onLogout }: TopbarProps) {
           <Icon name="settings" />
           <span>{t('topbar.settings')}</span>
         </button>
+
+        {/* 🖥️ PC上のみ：背景が黒、文字を表示するログアウトボタン（スマホ時はCSSで非表示） */}
         {onLogout ? (
           <button
             type="button"

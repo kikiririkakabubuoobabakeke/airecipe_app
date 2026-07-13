@@ -95,7 +95,7 @@
   gap: 24px;
   padding: 18px clamp(20px, 4vw, 56px);
   border-bottom: 1px solid var(--line);
-  background: rgba(255, 255, 255, 0.94);
+  background: rgba(255, 179, 0, 0.94);
   backdrop-filter: blur(18px);
 }
 
@@ -2417,7 +2417,12 @@ button:disabled {
     -webkit-text-stroke: 0.15px currentColor;
   }
 
-  .brand small,
+  .brand small {
+    display: block;
+    font-size: 10px;
+    white-space: nowrap;
+  }
+
   .hide-on-small {
     display: none;
   }
@@ -3133,8 +3138,8 @@ button:disabled {
 .shopping-current-panel {
   order: 1;
   display: grid;
-  gap: 10px;
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 18px;
 }
 
 .shopping-current-panel .settings-field {
@@ -3145,59 +3150,23 @@ button:disabled {
   margin: 0;
 }
 
-.shopping-current-summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px 16px;
-  background: var(--surface-soft);
-}
-
-.shopping-current-summary div {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-}
-
-.shopping-current-summary strong {
-  color: var(--ink);
-  font-size: 15px;
-  line-height: 1.4;
-}
-
-.shopping-current-summary span {
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.shopping-current-summary .secondary-button {
-  flex: 0 0 auto;
-  min-height: 38px;
-  padding: 0 14px;
-  font-size: 13px;
-}
-
 .shopping-current-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
+  gap: 8px;
+  margin-top: 10px;
 }
 
 .shopping-current-meta span {
   display: inline-flex;
-  min-height: 24px;
+  min-height: 28px;
   align-items: center;
   border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 0 9px;
+  padding: 0 10px;
   background: var(--surface-soft);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 800;
 }
 
@@ -3215,83 +3184,27 @@ button:disabled {
 .shopping-manual-panel {
   order: 4;
   display: grid;
-  gap: 18px;
-  padding: 18px 20px 20px;
+  gap: 14px;
+  padding: 20px;
 }
 
 .shopping-manual-panel .settings-section__description {
   max-width: 720px;
 }
 
-.shopping-manual-panel .section-heading {
-  padding-bottom: 4px;
-  border-bottom: 1px solid var(--line);
-}
-
-.shopping-manual-panel .section-heading h2 {
-  font-size: clamp(22px, 2vw, 28px);
-  line-height: 1.25;
-}
-
-.shopping-manual-panel form {
-  display: grid;
-  gap: 16px;
-}
-
-.shopping-manual-panel .settings-field {
-  gap: 6px;
-  padding: 0;
-  background: transparent;
-}
-
-.shopping-manual-panel .settings-field > span {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.shopping-manual-panel .settings-field input,
-.shopping-manual-panel .settings-field textarea,
-.shopping-manual-panel .shopping-target-row select {
-  min-height: 42px;
-  height: 42px;
-  border-color: var(--line);
-  font-size: 15px;
-}
-
 .shopping-form-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 1.4fr) minmax(160px, 1fr) repeat(2, minmax(96px, 0.55fr));
-  gap: 14px 16px;
+  grid-template-columns: minmax(180px, 1.2fr) minmax(150px, 0.9fr) minmax(110px, 0.6fr) minmax(110px, 0.6fr);
+  gap: 12px;
   align-items: end;
-}
-
-.shopping-target-row {
-  display: grid;
-  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1.6fr);
-  gap: 16px;
-  align-items: end;
-}
-
-.shopping-target-row select {
-  width: 100%;
-  min-height: 42px;
-  box-sizing: border-box;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 0 12px;
-  color: var(--ink);
-  background: #fff;
-  font: inherit;
 }
 
 .shopping-form-grid--footer {
-  grid-template-columns: minmax(110px, 0.4fr) minmax(260px, 1.4fr) minmax(140px, 0.4fr);
-  margin-top: 0;
+  grid-template-columns: minmax(240px, 1fr) auto;
+  margin-top: 12px;
 }
 
 .shopping-form-grid--footer .primary-button {
-  width: 100%;
   min-width: 140px;
   height: 42px;
 }
@@ -3354,22 +3267,21 @@ button:disabled {
 
 .shopping-recipe-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
-  gap: 8px;
-  max-width: 1120px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .shopping-recipe-option {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px 11px;
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 54px;
+  padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   color: var(--ink);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   transition:
@@ -3391,24 +3303,23 @@ button:disabled {
   width: 16px;
   height: 16px;
   flex: 0 0 auto;
-  margin: 0;
+  margin-top: 2px;
   accent-color: var(--control-ink);
 }
 
 .shopping-recipe-option .ingredient-name {
   min-width: 0;
   overflow: hidden;
-  display: block;
+  display: -webkit-box;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .shopping-recipe-more {
   display: flex;
   justify-content: center;
-  max-width: 1120px;
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .shopping-recipe-more .primary-button {
@@ -3566,20 +3477,6 @@ button:disabled {
   font-weight: 700;
 }
 
-.shopping-saved-detail__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.shopping-saved-detail__actions .primary-button,
-.shopping-saved-detail__actions .secondary-button {
-  min-height: 38px;
-  padding: 0 14px;
-  font-size: 13px;
-}
-
 .shopping-saved-detail__items {
   display: grid;
   gap: 8px;
@@ -3671,48 +3568,6 @@ button:disabled {
   font-weight: 800;
 }
 
-.shopping-saved-items-table th:nth-child(2),
-.shopping-saved-items-table td:nth-child(2) {
-  width: 24%;
-  min-width: 150px;
-}
-
-.shopping-saved-items-table th:nth-child(3),
-.shopping-saved-items-table td:nth-child(3) {
-  width: 130px;
-  min-width: 120px;
-  white-space: normal;
-}
-
-.shopping-saved-items-table th:nth-child(4),
-.shopping-saved-items-table td:nth-child(4) {
-  width: 110px;
-  min-width: 96px;
-  white-space: nowrap;
-}
-
-.shopping-saved-items-table th:nth-child(5),
-.shopping-saved-items-table td:nth-child(5) {
-  width: auto;
-  min-width: 200px;
-  text-align: left;
-  white-space: normal;
-}
-
-.shopping-saved-items-table th:nth-child(6),
-.shopping-saved-items-table td:nth-child(6) {
-  width: 96px;
-  min-width: 96px;
-  text-align: right;
-}
-
-.shopping-table__category {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.5;
-}
-
 .shopping-item-badge {
   display: inline-flex;
   margin-left: 8px;
@@ -3743,14 +3598,14 @@ button:disabled {
 .shopping-saved-dialog {
   display: grid;
   gap: 16px;
-  width: min(680px, 100%);
+  width: min(560px, 100%);
   max-height: min(680px, calc(100vh - 48px));
   overflow: auto;
 }
 
 @media (max-width: 1100px) {
   .shopping-recipe-grid {
-    grid-template-columns: repeat(2, minmax(220px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -3765,8 +3620,7 @@ button:disabled {
   }
 
   .shopping-form-grid,
-  .shopping-form-grid--footer,
-  .shopping-target-row {
+  .shopping-form-grid--footer {
     grid-template-columns: 1fr;
   }
 
@@ -3785,7 +3639,6 @@ button:disabled {
 
   .shopping-recipe-grid {
     grid-template-columns: 1fr;
-    max-width: none;
   }
 
   .shopping-bulk-actions,
@@ -3803,15 +3656,6 @@ button:disabled {
     flex: 1 1 0;
   }
 
-  .shopping-current-summary {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .shopping-current-summary .secondary-button {
-    width: 100%;
-  }
-
   .shopping-saved-list__item {
     align-items: stretch;
     flex-direction: column;
@@ -3824,12 +3668,6 @@ button:disabled {
   .shopping-saved-detail .section-heading {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .shopping-saved-detail__actions,
-  .shopping-saved-detail__actions .primary-button,
-  .shopping-saved-detail__actions .secondary-button {
-    width: 100%;
   }
 }
 
@@ -4074,7 +3912,9 @@ button:disabled {
   }
 
   .fridge-summary {
-    display: none;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
   }
 
   .fridge-table th,
@@ -4978,58 +4818,220 @@ button:disabled {
   color: var(--muted);
   font-size: 13px;
 }
+/* ==========================================================================
+   最下部追記用：PC・スマホの完全な表示分離とハンバーガー内集約設定
+   ========================================================================== */
 
-/* Expired row and badge styles */
-.fridge-table tr.expired-row {
-  background-color: rgba(var(--danger-rgb), 0.05);
-}
-.fridge-table tr.expired-row:hover {
-  background-color: rgba(var(--danger-rgb), 0.09);
-}
-
-.expiry-alert.expired-badge {
-  color: var(--danger);
-  background: rgba(var(--danger-rgb), 0.12);
-  border: 1px solid rgba(var(--danger-rgb), 0.22);
-}
-
-.expiration-expired {
-  color: var(--danger);
-  font-weight: 800;
-}
-
-/* Flash highlight animation for scrolling target */
-@keyframes row-flash-warning {
-  0% {
-    background-color: rgba(var(--warning-rgb), 0.34);
+/* 🖥️ 【PC・タブレット表示：701px以上】のコントロール */
+@media (min-width: 701px) {
+  /* 🎯 中央のナビ内に追加された「スマホ専用の設定・ログアウト」をPC上では完全に非表示 */
+  .topbar__nav .topbar__nav-extra-link {
+    display: none !important;
   }
-  100% {
-    background-color: transparent;
+
+  /* 🎯 食材・生成・登録・履歴のアイコンはPCでは非表示（テキストのみ表示） */
+  .topbar__nav-icon {
+    display: none !important;
+  }
+
+  /* 右側の元のアカウントボタン（背景黒・文字あり）を美しく常時表示 */
+  .account-button {
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    background-color: #000000 !important; /* 背景は黒 */
+    color: #ffffff !important;            /* 文字は白 */
+    border: none !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+  }
+
+  /* 🎯 ホーム画面下部の「買い物リスト・設定・お問い合わせ」セクションはPCでは常時表示 */
+  .secondary-section {
+    display: block !important;
+  }
+
+  /* PCでは右側のハンバーガーボタンを絶対に隠す */
+  .hamburger-button {
+    display: none !important;
+  }
+
+  /* 中央のナビメニューをいつもの綺麗な一行横並びスタイルに強制リセット */
+  .topbar__nav {
+    display: flex !important;
+    position: static !important;
+    width: auto !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    flex-direction: row !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    padding: 0 !important;
+  }
+
+  .topbar__nav a {
+    display: inline-flex !important;
+    width: auto !important;
+    padding: 10px 16px !important;
+    border-radius: 20px !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  .topbar__nav a:hover {
+    background: var(--surface-soft) !important;
+  }
+  .topbar__nav-extra-link {
+  display: none !important;
   }
 }
 
-@keyframes row-flash-danger {
-  0% {
-    background-color: rgba(var(--danger-rgb), 0.28);
+/* 📱 【スマホ表示：700px以下】のコントロール */
+@media (max-width: 700px) {
+  .topbar {
+    grid-template-columns: 1fr auto !important;
   }
-  100% {
-    background-color: transparent;
+
+  .topbar__actions {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
   }
-}
 
-.fridge-table tr.flash-highlight-warning {
-  animation: row-flash-warning 1.2s ease-out;
-}
+  /* スマホの時は、右側にあったPC用の背景黒ボタン（.account-button）をきれいに消去 */
+  .account-button {
+    display: none !important;
+  }
 
-.fridge-table tr.flash-highlight-danger {
-  animation: row-flash-danger 1.2s ease-out;
-}
+  /* 🎯 ホーム画面下部の「買い物リスト・設定・お問い合わせ」セクションはスマホでは非表示（ハンバーガー内に集約済みのため） */
+  .secondary-section {
+    display: none !important;
+  }
 
-/* Make summary cards clickable */
-.summary-card.clickable {
-  cursor: pointer;
-  user-select: none;
-}
-.summary-card.clickable:active {
-  transform: scale(0.995);
+  /* 🎯 食材・生成・登録・履歴のアイコンはスマホのハンバーガーメニュー内でのみ表示 */
+  .topbar__nav-icon {
+    display: inline-flex !important;
+    align-items: center;
+  }
+  
+  .topbar__nav.is-open .topbar__nav-extra-link {
+    display: flex !important;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    width: 100%;
+    color: var(--ink);
+    background-color: white;
+  }
+
+  /* ボタン要素（買い物リスト・お問い合わせ）だけにフォントとリセットを適用し、設定リンクの区切り線には影響させない */
+  .topbar__nav.is-open button.topbar__nav-extra-link {
+    font-family: inherit !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+    border: none !important;
+    cursor: pointer !important;
+  }
+
+  /* 🎯 買い物リスト・お問い合わせにもホバー時のフィードバックを付ける（ログアウトは除外） */
+  .topbar__nav.is-open button.topbar__nav-extra-link:not(.topbar__nav-logout-item):hover {
+    background-color: var(--surface-soft) !important;
+  }
+  /* ハンバーガーボタン（三本線）を出現させる */
+  .hamburger-button {
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    width: 42px !important;
+    height: 42px !important;
+    padding: 13px 11px !important;
+    background: #fff !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 8px !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0 !important;
+  }
+
+  .hamburger-button span {
+    display: block !important;
+    width: 100% !important;
+    height: 2px !important;
+    background-color: var(--ink) !important;
+    border-radius: 2px !important;
+  }
+
+  /* 4つのナビ（.topbar__nav）をスマホ時のみ縦並びポップオーバーへ変形 */
+  .topbar__nav {
+    display: flex !important;
+    flex-direction: column !important;
+    position: absolute !important;
+    top: calc(100% - 4px) !important;
+    right: clamp(16px, 4vw, 56px) !important;
+    width: 200px !important;
+    background: #ffffff !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 12px !important;
+    padding: 6px !important;
+    box-shadow: var(--shadow-soft) !important;
+    gap: 2px !important;
+    z-index: 999 !important;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+  }
+
+  /* スマホでハンバーガーメニューが開いた時 */
+  .topbar__nav.is-open {
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: translateY(0) !important;
+  }
+
+  /* スマホメニューが開いた時だけ、中央に隠していた「設定・ログアウト」を縦並びメニュー内に結合表示 */
+  .topbar__nav.is-open .topbar__nav-extra-link {
+    display: flex !important;
+  }
+
+  /* メニュー内のすべてのリンク（ナビ4つ＋設定＋ログアウト）を縦並び用に最適化 */
+  .topbar__nav a {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    color: var(--ink) !important;
+    text-decoration: none !important;
+    text-align: left !important;
+    background: transparent !important;
+  }
+
+  /* メニュー内アイテムのホバー効果 */
+  .topbar__nav a:hover,
+  .topbar__nav a:active {
+    background-color: var(--surface-soft) !important;
+  }
+
+  /* メニュー内の仕切り線（設定ボタンのすぐ上） */
+  .topbar__nav-settings-item {
+    border-top: 1px solid var(--line) !important;
+    margin-top: 4px !important;
+    padding-top: 12px !important;
+    border-radius: 0 !important;
+  }
+
+  .topbar__nav.is-open .topbar__nav-logout-item {
+    display: flex !important;
+    border-radius: 0 !important;
+    color: #ff0000 !important;
+  }
 }

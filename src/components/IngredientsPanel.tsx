@@ -1,9 +1,9 @@
-import { memo, useMemo, useState } from 'react'
+import { memo, useMemo } from 'react'
 import type { Ingredient } from '../types/ui'
 import { useI18n } from '../lib/useI18n'
 
 const visibleExpirationDays = 7
-const MAX_VISIBLE_ITEMS = 7
+const MAX_VISIBLE_ITEMS = 5
 
 function getDaysUntilExpiration(ingredient: Ingredient) {
   if (!ingredient.expirationDate) {
@@ -27,35 +27,47 @@ export const IngredientsPanel = memo(function IngredientsPanel({
   ingredients,
   isLoading = false,
   onAddIngredient,
+  onViewAll,
 }: {
   ingredients: Ingredient[]
   isLoading?: boolean
   onAddIngredient?: () => void
+  onViewAll?: () => void
 }) {
   const { t } = useI18n()
-  const [isExpanded, setIsExpanded] = useState(false)
 
   const visibleIngredients = useMemo(() => {
-    const withDays = ingredients
-      .map((ingredient) => ({
-        ingredient,
-        days: getDaysUntilExpiration(ingredient),
-      }))
-      .filter(
-        (entry): entry is { ingredient: Ingredient; days: number } =>
-          entry.days !== null &&
-          entry.days >= 0 &&
-          entry.days <= visibleExpirationDays,
-      )
+    const withDays = ingredients.map((ingredient) => ({
+      ingredient,
+      days: getDaysUntilExpiration(ingredient),
+    }))
 
-    withDays.sort((left, right) => left.days - right.days)
+    withDays.sort((left, right) => {
+      const leftUrgent =
+        left.days !== null && left.days <= visibleExpirationDays
+      const rightUrgent =
+        right.days !== null && right.days <= visibleExpirationDays
+
+      // 期限切れ間近〜当日〜1週間以内のものを最優先で上部へ
+      if (leftUrgent && !rightUrgent) return -1
+      if (!leftUrgent && rightUrgent) return 1
+
+      // 両方とも「期限が近いグループ」なら、日数が少ない順（緊急度が高い順）
+      if (leftUrgent && rightUrgent) {
+        return (left.days as number) - (right.days as number)
+      }
+
+      // 両方とも「期限が近くない・未設定」グループなら、元の登録順を維持
+      return 0
+    })
+
     return withDays.map((entry) => entry.ingredient)
   }, [ingredients])
 
   const hasMore = visibleIngredients.length > MAX_VISIBLE_ITEMS
-  const displayedIngredients = isExpanded || !hasMore
-    ? visibleIngredients
-    : visibleIngredients.slice(0, MAX_VISIBLE_ITEMS)
+  const displayedIngredients = hasMore
+    ? visibleIngredients.slice(0, MAX_VISIBLE_ITEMS)
+    : visibleIngredients
 
   return (
     <section
@@ -81,6 +93,7 @@ export const IngredientsPanel = memo(function IngredientsPanel({
                 <strong>{ingredient.name}</strong>
                 <small>{ingredient.amount}</small>
               </span>
+              {/* 登録済み食材一覧表示画面 */}
               <em>{ingredient.status}</em>
             </li>
           ))}
@@ -97,11 +110,9 @@ export const IngredientsPanel = memo(function IngredientsPanel({
         <button
           type="button"
           className="small-button ingredients-expand-toggle"
-          onClick={() => setIsExpanded((current) => !current)}
+          onClick={onViewAll}
         >
-          {isExpanded
-            ? t('home.ingredients.expandLess')
-            : t('home.ingredients.expandMore', { remaining: visibleIngredients.length - MAX_VISIBLE_ITEMS })}
+          {t('home.ingredients.expandMore', { remaining: visibleIngredients.length - MAX_VISIBLE_ITEMS })}
         </button>
       ) : null}
     </section>
