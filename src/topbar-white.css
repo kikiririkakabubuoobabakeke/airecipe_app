@@ -1,0 +1,4 @@
+/* Restore the latest white topbar appearance from commit 0d5b548fbc5ebdfba114c65ae583e950882f7c0c without reverting newer UI changes. */
+html .topbar {
+  background: rgba(255, 255, 255, 0.94);
+}
