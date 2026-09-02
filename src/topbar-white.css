@@ -15,6 +15,9 @@ html .topbar {
   }
 
   html .topbar__nav a {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
     min-width: 72px !important;
     padding: 8px 14px !important;
     border-radius: 6px !important;
@@ -22,6 +25,7 @@ html .topbar {
     background: transparent !important;
     font-size: 14px !important;
     font-weight: 600 !important;
+    text-align: center !important;
   }
 
   html .topbar__nav a:hover {
