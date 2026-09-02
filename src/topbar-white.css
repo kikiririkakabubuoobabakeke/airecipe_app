@@ -2,3 +2,45 @@
 html .topbar {
   background: rgba(255, 255, 255, 0.94);
 }
+
+/* Keep the newer mobile menu behavior, but restore the desktop topbar controls to the latest white-era styling. */
+@media (min-width: 701px) {
+  html .topbar__nav {
+    display: flex !important;
+    gap: 6px !important;
+    padding: 4px !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+  }
+
+  html .topbar__nav a {
+    min-width: 72px !important;
+    padding: 8px 14px !important;
+    border-radius: 6px !important;
+    color: var(--muted) !important;
+    background: transparent !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
+  }
+
+  html .topbar__nav a:hover {
+    color: var(--ink) !important;
+    background: var(--surface-soft) !important;
+  }
+
+  html .topbar__nav a.active {
+    border: 1px solid var(--line) !important;
+    color: var(--ink) !important;
+    background: var(--surface-soft) !important;
+  }
+
+  html .account-button {
+    min-height: 42px !important;
+    padding: 0 15px !important;
+    border-radius: 8px !important;
+    color: #fff !important;
+    background: var(--control-ink) !important;
+    font-weight: 700 !important;
+  }
+}
