@@ -383,7 +383,7 @@ export function Topbar({ onNavigate, onLogout }: TopbarProps) {
           onClick={(event) => {
             event.preventDefault()
             setIsMenuOpen(false)
-            onNavigate?.('receipt')
+            onNavigate?.('ingredient-register')
           }}
         >
           <span className="topbar__nav-icon"><Icon name="camera" /></span>
